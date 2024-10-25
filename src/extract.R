@@ -25,7 +25,7 @@ if (!dbExistsTable(conn, "rates")) {
     mutate(TIME_PERIOD = as.Date(TIME_PERIOD),
            OBS_STATUS = as.factor(OBS_STATUS))  %>%
     select(c("CURRENCY", "CURRENCY_DENOM", "TIME_PERIOD",
-             "OBS_STATUS", "UNIT_MULT"))
+             "OBS_STATUS", "OBS_VALUE"))
 
   dbWriteTable(conn, "rates", ex_rates)
 }
@@ -38,12 +38,13 @@ if (!dbExistsTable(conn, "rates")) {
 if (!dbExistsTable(conn, "ppp")){
   ppp_defl <- read.csv("data/ppp_deflator.csv", skip = 4)  %>%
     select(-c("Indicator.Name", "Indicator.Code", "X", "Country.Name")) %>%
-    pivot_longer(!c("Country.Code"),
+    rename("Country.code" = "Country.Code") %>%
+    pivot_longer(!c("Country.code"),
                  names_to = "TIME_PERIOD",
                  values_to = "ppp")  %>%
     mutate(TIME_PERIOD = as.integer(gsub("X", "", TIME_PERIOD)))
 
-  dbWriteTable(conn, "ppp", ppp)
+  dbWriteTable(conn, "ppp", ppp_defl)
 }
 
 # CPI ###########################################################
@@ -78,6 +79,7 @@ if (!dbExistsTable(conn, "gdp")) {
     pivot_longer(!c("Country.Code"),
                  names_to = "TIME_PERIOD",
                  values_to = "gdp")  %>%
+    rename("Country.code" = "Country.Code") %>%
     mutate(TIME_PERIOD = as.integer(gsub("X", "", TIME_PERIOD)))
 
   dbWriteTable(conn, "gdp", gdp)
