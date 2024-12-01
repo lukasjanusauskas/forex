@@ -8,6 +8,8 @@ class CollectorException(Exception):
 
 
 class SDMXCollector:
+  OECD_ALL_COUNTRIES = "AUT+BEL+CAN+CHL+COL+CRI+CZE+DNK+EST+FIN+FRA+DEU+GRC+HUN+ISL+IRL+ISR+ITA+JPN+KOR+LVA+LTU+LUX+MEX+NLD+NZL+NOR+POL+PRT+SVK+SVN+ESP+SWE+CHE+TUR+GBR+G7+G20+EA20+EU27_2020+OECD+ARG+BRA+CHN+IND+IDN+RUS+SAU+ZAF+AUS+USA"
+
   def __init__(self,
                source: str,
                resource: str,
@@ -18,7 +20,6 @@ class SDMXCollector:
     self.params = "&".join([f"{key}={val}" 
                             for key, val in params.items()])
 
-
   def make_url(self,
                flow_ref: list[str] | str,
                arg_list: list[str] | dict) -> str:
@@ -27,7 +28,7 @@ class SDMXCollector:
       arg_list = arg_list.items()
 
     if isinstance(flow_ref, list):
-      flow_ref = self.__create_flowref(flow_ref)
+      flow_ref = self.__create_flowref(*flow_ref)
 
     key = '.'.join(arg_list)
     url = f"https://{self.source}/{self.resource}/data/{flow_ref}/{key}?{self.params}"
@@ -35,14 +36,13 @@ class SDMXCollector:
     return url
 
   def __parse_error(self, error_html: str) -> str:
-    return error_html
+    return error_html.decode()
 
   def __create_flowref(self, agency: str,
                        dataflow: str,
                        dataflow_version: str) -> str:
 
     return f"{agency},{dataflow},{dataflow_version}"
-
 
   def get(self,
           flow_ref: list[str] | str,
@@ -58,4 +58,4 @@ class SDMXCollector:
     elif output.status_code != 200:
       raise CollectorException(f"Unknown error. Error code: {output.status_code()}")
 
-    return output.content
+    return output.content.decode()
