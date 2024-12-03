@@ -12,17 +12,16 @@ class SDMXCollector:
 
   def __init__(self,
                source: str,
-               resource: str,
-               params: dict) -> None:
+               resource: str) -> None:
     
     self.source = source
     self.resource = resource
-    self.params = "&".join([f"{key}={val}" 
-                            for key, val in params.items()])
 
   def make_url(self,
                flow_ref: list[str] | str,
-               arg_list: list[str] | dict) -> str:
+               arg_list: list[str] | None = None,
+               n_args: int | None = None,
+               params: dict | None = None) -> str:
 
     if isinstance(arg_list, dict):
       arg_list = arg_list.items()
@@ -30,8 +29,19 @@ class SDMXCollector:
     if isinstance(flow_ref, list):
       flow_ref = self.__create_flowref(*flow_ref)
 
-    key = '.'.join(arg_list)
-    url = f"https://{self.source}/{self.resource}/data/{flow_ref}/{key}?{self.params}"
+    if arg_list:
+      key = '.'.join(arg_list)
+    elif n_args:
+      key = '.' * (n_args - 1)
+
+    url = f"https://{self.source}/{self.resource}/data/{flow_ref}"
+
+    if key:
+      url += f"/{key}"
+      if params:
+        params = "&".join([f"{key}={val}" 
+                           for key, val in params.items()])
+        url += f"?{params}"
 
     return url
 
@@ -46,9 +56,11 @@ class SDMXCollector:
 
   def get(self,
           flow_ref: list[str] | str,
-          arg_list: list[str] | dict) -> str:
+          arg_list: list[str] | None = None,
+          n_args: int | None = None,
+          params: dict | None = None) -> str:
 
-    url = self.make_url(flow_ref, arg_list)
+    url = self.make_url(flow_ref, arg_list, n_args, params)
     output = requests.get(url)
     
     if output.status_code != 200 and output.content:
