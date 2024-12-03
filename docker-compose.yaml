@@ -1,0 +1,15 @@
+
+services:
+  postgres-db:
+    image: postgres:14
+    environment:
+      - POSTGRES_DB=forex
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5544:5432"
+
+volumes:
+  postgres_data:
