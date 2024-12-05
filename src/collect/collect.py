@@ -23,25 +23,19 @@ class SDMXCollector:
                n_args: int | None = None,
                params: dict | None = None) -> str:
 
-    if isinstance(arg_list, dict):
-      arg_list = arg_list.items()
-
     if isinstance(flow_ref, list):
       flow_ref = self.__create_flowref(*flow_ref)
 
-    if arg_list:
-      key = '.'.join(arg_list)
-    elif n_args:
-      key = '.' * (n_args - 1)
-
     url = f"https://{self.source}/{self.resource}/data/{flow_ref}"
 
+    key = self.__set_key(arg_list, n_args)
     if key:
       url += f"/{key}"
-      if params:
-        params = "&".join([f"{key}={val}" 
-                           for key, val in params.items()])
-        url += f"?{params}"
+
+    if params:
+      params = "&".join([f"{key}={val}" 
+                         for key, val in params.items()])
+      url += f"?{params}"
 
     return url
 
@@ -53,6 +47,18 @@ class SDMXCollector:
                        dataflow_version: str) -> str:
 
     return f"{agency},{dataflow},{dataflow_version}"
+
+  def __set_key(self,
+                arg_list: list[str] | None,
+                n_args: int | None):
+    key = None
+    if arg_list:
+      key = '.'.join(arg_list)
+    elif n_args:
+      key = '.' * (n_args - 1)
+
+    return key
+    
 
   def get(self,
           flow_ref: list[str] | str,
