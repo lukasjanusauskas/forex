@@ -1,3 +1,4 @@
 *_venv/
 _*/
 .env
+raw_metadata/

@@ -8,8 +8,6 @@ class CollectorException(Exception):
 
 
 class SDMXCollector:
-  OECD_ALL_COUNTRIES = "AUT+BEL+CAN+CHL+COL+CRI+CZE+DNK+EST+FIN+FRA+DEU+GRC+HUN+ISL+IRL+ISR+ITA+JPN+KOR+LVA+LTU+LUX+MEX+NLD+NZL+NOR+POL+PRT+SVK+SVN+ESP+SWE+CHE+TUR+GBR+G7+G20+EA20+EU27_2020+OECD+ARG+BRA+CHN+IND+IDN+RUS+SAU+ZAF+AUS+USA"
-
   def __init__(self,
                source: str,
                resource: str) -> None:
