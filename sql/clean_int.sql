@@ -30,6 +30,6 @@ DROP COLUMN "ACTIVITY";
 
 -- Replace the temporary table with the new temporary table
 DROP TABLE interest_rate;
-CREATE TABLE interest_rates AS
+CREATE TABLE interest_rate AS
 SELECT * FROM tmp_int;
 DROP TABLE tmp_int;
