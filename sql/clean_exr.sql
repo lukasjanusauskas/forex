@@ -81,3 +81,5 @@ SELECT "CURRENCY" as currency,
 	   "TIME_PERIOD" as time_period,
 	   "OBS_VALUE" as rate
 FROM exchange_rates;
+
+DROP TABLE exchange_rates;
