@@ -33,3 +33,7 @@ DROP TABLE interest_rate;
 CREATE TABLE interest_rate AS
 SELECT * FROM tmp_int;
 DROP TABLE tmp_int;
+
+-- Mistake fix
+ALTER TABLE interest_rate
+DROP COLUMN adjustment;
