@@ -3,6 +3,7 @@
 import requests
 import pandas as pd
 from io import StringIO
+from lxml import etree
 
 
 class CollectorException(Exception):
@@ -17,21 +18,27 @@ class SDMXCollector:
     self.source = source
     self.resource = resource
 
-  def make_url(self,
+  def make_url_data(self,
                flow_ref: list[str] | str,
                arg_list: list[str] | None = None,
                n_args: int | None = None,
                params: dict | None = None) -> str:
+    # Makes the url for data retrieval
 
     if isinstance(flow_ref, list):
-      flow_ref = self.__create_flowref(*flow_ref)
+      flow_ref = self.__create_flowref(delimeter=",", *flow_ref)
 
+    # Defines url following conventional SDMX rules
     url = f"https://{self.source}/{self.resource}/data/{flow_ref}"
 
+    # Key defines a query. 
+    # Query arguments go in between dots, 
+    # position of query fields follow the dimensions, we can get from metadata. 
     key = self.__set_key(arg_list, n_args)
     if key:
       url += f"/{key}"
 
+    # params define additional parameters
     if params:
       params = "&".join([f"{key}={val}" 
                          for key, val in params.items()])
@@ -39,14 +46,29 @@ class SDMXCollector:
 
     return url
 
+  def make_url_meta(self,
+                    flow_ref: list[str] | str,
+                    dataflow: str = "dataflow") -> str:
+    # Makes the url for data retrieval
+
+    if isinstance(flow_ref, list):
+      flow_ref = self.__create_flowref(delimeter=",", *flow_ref)
+
+    url = f"https://{self.source}/{self.resource}/{dataflow}/{flow_ref}?references=all"
+
+    return url
+
+
   def __parse_error(self, error_html: str) -> str:
     return error_html.decode()
 
   def __create_flowref(self, agency: str,
                        dataflow: str,
-                       dataflow_version: str) -> str:
+                       dataflow_version: str,
+                       delimeter=",") -> str:
+    # Generate a flowRef part to of SDMX API. 
 
-    return f"{agency},{dataflow},{dataflow_version}"
+    return f"{delimeter}".join([agency, dataflow, dataflow_version])
 
   def __set_key(self,
                 arg_list: list[str] | None,
@@ -60,13 +82,13 @@ class SDMXCollector:
     return key
     
 
-  def get(self,
+  def get_data(self,
           flow_ref: list[str] | str,
           arg_list: list[str] | None = None,
           n_args: int | None = None,
           params: dict | None = None) -> str:
 
-    url = self.make_url(flow_ref, arg_list, n_args, params)
+    url = self.make_url_data(flow_ref, arg_list, n_args, params)
     output = requests.get(url)
     
     if output.status_code != 200 and output.content:
@@ -78,24 +100,73 @@ class SDMXCollector:
 
     return output.content.decode()
 
-@staticmethod
-def sample_to_pandas(sample, 
-                     parse_dates: list[str] = None):
 
-  df = pd.read_csv(StringIO(sample),
-            parse_dates=parse_dates,
-            engine="pyarrow")
+  def get_metadata(self,
+          flow_ref: list[str] | str,
+          dataflow: str = "dataflow"):
+    # Gets metadata which is a pair of dimension list and code list dictionary
 
-  return df
+    # Make the request
+    url = self.make_url_meta(flow_ref, dataflow)
+    res = requests.get(url)
 
-@staticmethod
-def factorize(df: pd.DataFrame):
-  obj_cols = df.keys()[df.dtypes == "object"]
-  factor_array = []
+    # Deal with errors
+    if res.status_code != 200 and res.content:
+      error_output = self.__parse_error(res.content)
+      raise CollectorException(f"The collector can't access metadata:\n{error_output}")
 
-  for col in obj_cols:
-    indices, factors = pd.factorize(df[col])
-    df.loc[:, col] = indices
-    factor_array.append( (col, factors) )
+    elif res.status_code != 200:
+      raise CollectorException(f"Unknown error. Error code: {res.status_code()}")
 
-  return df, factor_array
+    # Parse the request
+    root = etree.fromstring(str(res.text)[40:]) # lxml needs to ignore the <?xml ...> tag
+
+    structure_tag = "{http://www.sdmx.org/resources/sdmxml/schemas/v2_1/structure}"
+    common_tag = "{http://www.sdmx.org/resources/sdmxml/schemas/v2_1/common}"
+    # Get dimensions
+    dimensions = [el.get('id') for el in root.iter(f'{structure_tag}Dimension')
+                               if el.get('id') is not None]
+
+    # Get code lists
+    code_lists = {}
+    for codelist in root.iter(f'{structure_tag}Codelist'):
+      codes = [e.get('id') for e in codelist.iter(f'{structure_tag}Code')]
+      names = [e.text for e in codelist.iter(f'{common_tag}Name')]
+
+      code_lists[codelist] = {code : name for code, name 
+                                           in zip(codes, names)}
+
+    return dimensions, code_lists
+
+  @staticmethod
+  def sample_to_pandas(sample, 
+                       parse_dates: list[str] = None):
+
+    df = pd.read_csv(StringIO(sample),
+              parse_dates=parse_dates,
+              engine="pyarrow")
+
+    return df
+
+  @staticmethod
+  def factorize(df: pd.DataFrame):
+    obj_cols = df.keys()[df.dtypes == "object"]
+    factor_array = []
+
+    for col in obj_cols:
+      # Factorizes object columns
+      indices, factors = pd.factorize(df[col])
+      df.loc[:, col] = indices
+
+      # Adds to a list of dimension tables
+      # In this stage they are Python tuples
+      # later they will be turned into pandas Dataframes and exported to Postgres
+      factor_array.append( (col, factors) )
+
+      return df, factor_array
+
+  """
+  TODO: 
+  - fix getting
+  - fix readability
+  """
