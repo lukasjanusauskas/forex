@@ -1,8 +1,11 @@
 # Define classes for metadata collection
 import pandas as pd
-from collect import CollectorException
 import requests
 from lxml import etree
+
+class CollectorException(Exception):
+  pass
+
 
 class MetaData:
   def __init__(self, 

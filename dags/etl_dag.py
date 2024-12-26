@@ -1,31 +1,10 @@
 from datetime import datetime, timedelta
 from airflow import DAG
 
-from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
-from collect.collect import SDMXCollector
+from meta_imports import import_bop_meta, import_inr_meta, improt_exr_meta
+from data_imports import import_bop_data
 
-def import_bop_data():
-  # collector = SDMXCollector("sdmx.oecd.org/public", "rest")
-
-  # n_args = 8
-  # flow_ref = ["OECD.SDD.TPS", "DSD_BOP@DF_BOP", ""]
-
-  # sample = collector.get(flow_ref, n_args=n_args, params={"format": "csv", "startPeriod": "2023-Q3"})
-
-  # df = collector.sample_to_pandas(sample, parse_dates=["TIME_PERIOD"])
-  # df.drop("DATAFLOW", axis=1, inplace=True)
-
-  # df, factor_array = collector.factorize(df)
-
-  # return df.head()
-  pass
-
-def import_inr_data():
-  pass
-
-def import_ex_data():
-  pass
 
 default_args = {
     'owner': 'lukas',
@@ -34,31 +13,64 @@ default_args = {
 }
 
 with DAG(
-  dag_id='forex_etl',
+  dag_id='forex_etl_v0_03',
   default_args=default_args,
   description='The first try at a FOREX data ETL',
   start_date=datetime(2024, 12, 1),
   schedule_interval='@weekly'
 ) as dag:
 
-  import_bop = PythonOperator(
-    task_id="bop_importer",
-    python_callable=import_bop_data
+  # Definition of metadata import tasks
+  bop_meta = PythonOperator(
+    task_id = "bop_meta",
+    python_callable = import_bop_meta,
+    op_kwargs = {
+      'source': 'sdmx.oecd.org', 
+      'resource': 'public/rest',
+      'flowref': ['OECD.SDD.TPS', 'DSD_BOP@DF_BOP/', ''],
+      'dataflow': 'dataflow'
+    }
   )
 
-  import_inr = PythonOperator(
-    task_id="inr_importer",
-    python_callable=import_inr_data
+  inr_meta = PythonOperator(
+    task_id = "inr_meta",
+    python_callable = import_inr_meta,
+    op_kwargs = {
+      'source': 'sdmx.oecd.org', 
+      'resource': 'public/rest',
+      'flowref': ["OECD.SDD.STES", "DSD_KEI@DF_KEI", "4.0"],
+      'dataflow': 'dataflow'
+    }
   )
 
-  import_ex = PythonOperator(
-    task_id="exr_importer",
-    python_callable=import_ex_data
+  exr_meta = PythonOperator(
+    task_id = "exr_meta",
+    python_callable = improt_exr_meta,
+    op_kwargs = {
+      'source': 'data-api.ecb.europa.eu', 
+      'resource': 'service',
+      'flowref': ['ECB', 'ECB_EXR1', '1.0'],
+      'dataflow': 'datastructure'
+    }
   )
 
-  task1 = BashOperator(
-    task_id='first_task',
-    bash_command='echo Pavyko'
+  # Definition of data import tasks
+  bop_import = PythonOperator(
+    task_id = "import_bop",
+    python_callable = import_bop_data
   )
 
-  [import_bop, import_inr, import_ex] >> task1
+  inr_import = PythonOperator(
+    task_id = "import_bop",
+    python_callable = import_bop_data
+  )
+
+  exr_import = PythonOperator(
+    task_id = "import_bop",
+    python_callable = import_bop_data
+  )
+
+  # DAG definition
+  [bop_meta >> bop_import, 
+   inr_meta >> inr_import,
+   exr_meta >> exr_import] 
