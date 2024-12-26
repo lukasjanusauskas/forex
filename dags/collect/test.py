@@ -34,6 +34,9 @@ class CollectorTest(unittest.TestCase):
                            {"startPeriod": "2023-12-31", "format": "csvdata"})
     self.assertGreater(len(output), 0)
 
+  def test_metadata_url(self):
+    pass
+
 
 if __name__ == "__main__":
   unittest.main()

@@ -130,8 +130,11 @@ class SDMXCollector:
     # Get code lists
     code_lists = {}
     for codelist in root.iter(f'{structure_tag}Codelist'):
-      codes = [e.get('id') for e in codelist.iter(f'{structure_tag}Code')]
-      names = [e.text for e in codelist.iter(f'{common_tag}Name')]
+      codes = [e.get('id') 
+               for e in codelist.iter(f'{structure_tag}Code')]
+
+      names = [e.text 
+               for e in codelist.iter(f'{common_tag}Name')]
 
       code_lists[codelist] = {code : name for code, name 
                                            in zip(codes, names)}
@@ -164,9 +167,3 @@ class SDMXCollector:
       factor_array.append( (col, factors) )
 
       return df, factor_array
-
-  """
-  TODO: 
-  - fix getting
-  - fix readability
-  """
