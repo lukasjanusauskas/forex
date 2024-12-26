@@ -38,13 +38,13 @@ class MetaDataCollector:
     url = self.make_url(flow_ref, dataflow)
     res = requests.get(url)
    
-    self.__handle_status(res, url)
+    self._handle_status(res, url)
     
-    xml_data = handle_xml(res.text)
+    xml_data = handle_xml(res.content)
     meta = etree.fromstring(xml_data)
 
-    dimensions = self.__get_dimensions(meta)
-    codelists = self.__get_codelist(meta)
+    dimensions = self._get_dimensions(meta)
+    codelists = self._get_codelist(meta)
 
     return MetaData(dimensions, codelists)
 
@@ -53,13 +53,13 @@ class MetaDataCollector:
                dataflow: str = "dataflow") -> str:
 
     if isinstance(flow_ref, list):
-      flow_ref = self.__create_flowref(delimeter="/", *flow_ref)
+      flow_ref = self._create_flowref(delimeter="/", *flow_ref)
 
     url = f"https://{self.source}/{self.resource}/{dataflow}/{flow_ref}?references=all"
 
     return url
 
-  def __create_flowref(self, agency: str,
+  def _create_flowref(self, agency: str,
                        dataflow: str,
                        dataflow_version: str,
                        delimeter=",") -> str:
@@ -67,7 +67,7 @@ class MetaDataCollector:
 
     return f"{delimeter}".join([agency, dataflow, dataflow_version])
 
-  def __get_dimensions(self, meta: etree.Element) -> list[str]:
+  def _get_dimensions(self, meta: etree.Element) -> list[str]:
     # Get dimensions
     structure = self.namespace['structure']
 
@@ -80,7 +80,7 @@ class MetaDataCollector:
 
     return dimensions
 
-  def __get_codelist(self, meta: etree.Element) -> dict:
+  def _get_codelist(self, meta: etree.Element) -> dict:
     # Unpack namespaces
     structure, common = self.namespace['structure'], self.namespace['common']
 
@@ -95,37 +95,81 @@ class MetaDataCollector:
 
     return code_lists
 
-  def __handle_status(self, res: requests.Response, url: str):
+  def _handle_status(self, res: requests.Response, url: str):
     status_code = res.status_code
+
+    # If the status code is 200: all good
+    if status_code == 200:
+       return
 
     # Handle the response status code
     if status_code == 404:
       print(f"""There is something wrong with the URL 
                 {url} or there were changes made to the API""")
     elif int(status_code / 10) == 5:
-      raise CollectorException("Internal server error")
+      raise CollectorException(f"Internal server error {status_code}")
     else:
       raise CollectorException(f"""HTTP error code: {status_code}\n URL: {url}""")
 
 
 class OECDMetaCollector(MetaDataCollector):
-  def __get_codelist(self, meta: etree.Element) -> dict:
+  def get_metadata(self,
+                   flow_ref: list[str] | str,
+                   dataflow: str,
+                   handle_xml = lambda x: x) -> MetaData:
+    # Retrieves metadata and returns a MetaData object
+
+    url = self.make_url(flow_ref, dataflow)
+    res = requests.get(url)
+   
+    self._handle_status(res, url)
+    
+    xml_data = handle_xml(res.content)
+    meta = etree.fromstring(xml_data)
+
+    dimensions = self._get_dimensions(meta)
+    codelists = self._get_codelist(meta)
+
+    return MetaData(dimensions, codelists)
+
+  def _get_codelist(self, meta: etree.Element) -> dict:
     # Unpack namespaces
     structure, common = self.namespace['structure'], self.namespace['common']
 
     code_lists = {}
     for codelist in meta.iter(f'{structure}Codelist'):
+          list_name = codelist.get('id')
+
           # Get codes and coresponding names
           codes = [e.get('id') for e in codelist.iter(f'{structure}Code')]
           names = [e.text for e in codelist.iter(f'{common}Name')]
 
-          code_lists[codelist] = {code : name for code, name 
+          code_lists[list_name] = {code : name for code, name 
                                                in zip(codes, names[::2])}
 
     return code_lists
 
 class ECBMetaCollector(MetaDataCollector):
-  def __get_codelist(self, meta: etree.Element) -> dict:
+  def get_metadata(self,
+                   flow_ref: list[str] | str,
+                   dataflow: str,
+                   handle_xml = lambda x: x) -> MetaData:
+    # Retrieves metadata and returns a MetaData object
+
+    url = self.make_url(flow_ref, dataflow)
+    res = requests.get(url)
+   
+    self._handle_status(res, url)
+    
+    xml_data = handle_xml(res.content)
+    meta = etree.fromstring(xml_data)
+
+    dimensions = self._get_dimensions(meta)
+    codelists = self._get_codelist(meta)
+
+    return MetaData(dimensions, codelists)
+
+  def _get_codelist(self, meta: etree.Element) -> dict:
     # Unpack namespaces
     structure, common = self.namespace['structure'], self.namespace['common']
 
@@ -139,3 +183,12 @@ class ECBMetaCollector(MetaDataCollector):
                                                in zip(codes, names[1::])}
 
     return code_lists
+
+if __name__ == "__main__":
+  """https://sdmx.oecd.org/public/rest/dataflow/OECD.SDD.TPS/DSD_BOP@DF_BOP/?references=all"""
+  collector = OECDMetaCollector('sdmx.oecd.org', 'public/rest')  
+  metadata = collector.get_metadata(['OECD.SDD.TPS', 'DSD_BOP@DF_BOP/', ''],
+                                     'dataflow')
+
+  print(metadata.dimensions)
+  print(metadata.codelists)
