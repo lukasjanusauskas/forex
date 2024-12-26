@@ -18,7 +18,7 @@ class SDMXCollector:
     self.source = source
     self.resource = resource
 
-  def make_url_data(self,
+  def make_url(self,
                flow_ref: list[str] | str,
                arg_list: list[str] | None = None,
                n_args: int | None = None,
@@ -88,7 +88,7 @@ class SDMXCollector:
           n_args: int | None = None,
           params: dict | None = None) -> str:
 
-    url = self.make_url_data(flow_ref, arg_list, n_args, params)
+    url = self.make_url(flow_ref, arg_list, n_args, params)
     output = requests.get(url)
     
     if output.status_code != 200 and output.content:

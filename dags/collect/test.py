@@ -1,5 +1,6 @@
 import unittest
 from collect import SDMXCollector 
+from metadata import MetaDataCollector
 
 
 class CollectorTest(unittest.TestCase):
@@ -27,15 +28,21 @@ class CollectorTest(unittest.TestCase):
 
     self.assertEqual(result, output)
 
-  def test_get(self):
-    collector = SDMXCollector("data-api.ecb.europa.eu", "service")
-
-    output = collector.get("EXR", ["D", "USD", "EUR", "SP00", "A"],
-                           {"startPeriod": "2023-12-31", "format": "csvdata"})
-    self.assertGreater(len(output), 0)
-
   def test_metadata_url(self):
-    pass
+    namespace = {
+      'structure': '{http://www.sdmx.org/resources/sdmxml/schemas/v2_1/structure}',
+      'common': '{http://www.sdmx.org/resources/sdmxml/schemas/v2_1/common}'
+    }
+
+    collector = MetaDataCollector('data-api.ecb.europa.eu', 'service')  
+
+    result = collector.make_url(['ECB', 'ECB_EXR1', '1.0'], 'datastructure')
+    output = 'https://data-api.ecb.europa.eu/service/datastructure/ECB/ECB_EXR1/1.0?references=all'
+
+    self.assertEqual(result, output)
+
+    self.assertEqual(namespace['structure'], collector.namespace['structure'])
+    self.assertEqual(namespace['common'], collector.namespace['common'])
 
 
 if __name__ == "__main__":

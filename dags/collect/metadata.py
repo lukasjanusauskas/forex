@@ -22,13 +22,17 @@ class MetaDataCollector:
     'common': '{http://www.sdmx.org/resources/sdmxml/schemas/v2_1/common}'
   }
 
-  def __init__(self, namespace: dict):
+  def __init__(self, source: str, resource: str,
+               namespace: dict = DEFAULT_NAMESPACE):
+
+    self.source = source
+    self.resource = resource
     self.namespace = namespace
     
   def get_metadata(self,
                    flow_ref: list[str] | str,
                    dataflow: str,
-                   handle_xml: function = lambda x: x) -> MetaData:
+                   handle_xml = lambda x: x) -> MetaData:
     # Retrieves metadata and returns a MetaData object
 
     url = self.make_url(flow_ref, dataflow)
@@ -49,11 +53,19 @@ class MetaDataCollector:
                dataflow: str = "dataflow") -> str:
 
     if isinstance(flow_ref, list):
-      flow_ref = self.__create_flowref(delimeter=",", *flow_ref)
+      flow_ref = self.__create_flowref(delimeter="/", *flow_ref)
 
     url = f"https://{self.source}/{self.resource}/{dataflow}/{flow_ref}?references=all"
 
     return url
+
+  def __create_flowref(self, agency: str,
+                       dataflow: str,
+                       dataflow_version: str,
+                       delimeter=",") -> str:
+    # Generate a flowRef part to of SDMX API. 
+
+    return f"{delimeter}".join([agency, dataflow, dataflow_version])
 
   def __get_dimensions(self, meta: etree.Element) -> list[str]:
     # Get dimensions
