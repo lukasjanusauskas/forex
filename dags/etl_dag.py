@@ -13,7 +13,7 @@ default_args = {
 }
 
 with DAG(
-  dag_id='forex_etl_v0_03',
+  dag_id='forex_etl_v0_04',
   default_args=default_args,
   description='The first try at a FOREX data ETL',
   start_date=datetime(2024, 12, 1),
@@ -27,7 +27,7 @@ with DAG(
     op_kwargs = {
       'source': 'sdmx.oecd.org', 
       'resource': 'public/rest',
-      'flowref': ['OECD.SDD.TPS', 'DSD_BOP@DF_BOP/', ''],
+      'flow_ref': ['OECD.SDD.TPS', 'DSD_BOP@DF_BOP/', ''],
       'dataflow': 'dataflow'
     }
   )
@@ -38,7 +38,7 @@ with DAG(
     op_kwargs = {
       'source': 'sdmx.oecd.org', 
       'resource': 'public/rest',
-      'flowref': ["OECD.SDD.STES", "DSD_KEI@DF_KEI", "4.0"],
+      'flow_ref': ["OECD.SDD.STES", "DSD_KEI@DF_KEI", "4.0"],
       'dataflow': 'dataflow'
     }
   )
@@ -49,7 +49,7 @@ with DAG(
     op_kwargs = {
       'source': 'data-api.ecb.europa.eu', 
       'resource': 'service',
-      'flowref': ['ECB', 'ECB_EXR1', '1.0'],
+      'flow_ref': ['ECB', 'ECB_EXR1', '1.0'],
       'dataflow': 'datastructure'
     }
   )
@@ -61,13 +61,21 @@ with DAG(
   )
 
   inr_import = PythonOperator(
-    task_id = "import_bop",
+    task_id = "import_inr",
     python_callable = import_bop_data
   )
 
   exr_import = PythonOperator(
-    task_id = "import_bop",
-    python_callable = import_bop_data
+    task_id = "import_exr",
+    python_callable = import_bop_data,
+    op_kwargs = {
+      "source": "data-api.ecb.europa.eu",
+      "resource": "service",
+      "flow_ref": "EXR",
+      "params": {
+        "startDate"
+      }
+    }
   )
 
   # DAG definition

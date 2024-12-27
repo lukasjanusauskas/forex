@@ -64,11 +64,14 @@ class MetaDataCollector:
 
   def _create_flowref(self, agency: str,
                        dataflow: str,
-                       dataflow_version: str,
-                       delimeter=",") -> str:
+                       dataflow_version: str = None,
+                       delimeter: str = "/") -> str:
     # Generate a flowRef part to of SDMX API. 
 
-    return f"{delimeter}".join([agency, dataflow, dataflow_version])
+    if dataflow_version:
+      return f"{delimeter}".join([agency, dataflow, dataflow_version]) 
+    else:
+      return f"{delimeter}".join([agency, dataflow]) 
 
   def _get_dimensions(self, meta: etree.Element) -> list[str]:
     # Get dimensions
@@ -128,7 +131,10 @@ class OECDMetaCollector(MetaDataCollector):
     self._handle_status(res, url)
     
     xml_data = handle_xml(res.content)
-    meta = etree.fromstring(xml_data)
+    try:
+      meta = etree.fromstring(xml_data)
+    except etree.XMLSyntaxError:
+      print(xml_data)
 
     dimensions = self._get_dimensions(meta)
     codelists = self._get_codelist(meta)
