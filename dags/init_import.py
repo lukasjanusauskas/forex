@@ -1,21 +1,21 @@
 from datetime import datetime, timedelta
-from airflow import DAG
 
+from airflow import DAG
 from airflow.operators.python import PythonOperator
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
+
 from meta_imports import import_bop_meta, import_inr_meta, improt_exr_meta
 from data_imports import import_bop_data, import_inr_data, import_exr_data
 
-
 default_args = {
     'owner': 'lukas',
-    'retries': 3,
-    'retry_delay': timedelta(days=1)
+    'retires': 0
 }
 
 with DAG(
-  dag_id='forex_etl_v0_05',
+  dag_id='forex_elt_v1_02',
   default_args=default_args,
-  description='The first try at a FOREX data ETL',
+  description='FOREX data ELT pipeline',
   start_date=datetime(2024, 12, 1),
   schedule_interval='@once'
 ) as dag:
@@ -97,7 +97,43 @@ with DAG(
     }
   )
 
+  bop_clean = SQLExecuteQueryOperator(
+    task_id = "bop_clean",
+    conn_id='pg_local',
+    sql="sql/clean_bop.sql"
+  )
+
+  inr_clean = SQLExecuteQueryOperator(
+    task_id = "inr_clean",
+    conn_id='pg_local',
+    sql="sql/clean_inr.sql"
+  )
+
+  exr_clean = SQLExecuteQueryOperator(
+    task_id = "exr_clean",
+    conn_id='pg_local',
+    sql="sql/clean_exr.sql"
+  )
+
+  make_star = SQLExecuteQueryOperator(
+    task_id = "make_star",
+    conn_id='pg_local',
+    sql="sql/star_schema.sql"
+  )
+
+  drop_useless = SQLExecuteQueryOperator(
+    task_id = "drop_useless",
+    conn_id='pg_local',
+    sql="sql/drop_redundand.sql"
+  )
+
+  (
   # DAG definition
-  [bop_meta >> bop_import, 
-   inr_meta >> inr_import,
-   exr_meta >> exr_import] 
+  # ELT pipelines for each individual source
+  [bop_meta >> bop_import >> bop_clean,   # Balance of pay
+   inr_meta >> inr_import >> inr_clean,   # Interest rates
+   exr_meta >> exr_import >> exr_clean]   # Exchange rates
+
+   >> make_star                           # Make a star schema from a relational DB 
+   >> drop_useless                        # Drop useless tables
+  )

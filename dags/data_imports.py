@@ -64,7 +64,7 @@ def import_inr_data(
   df, factors = import_data(source, resource, flow_ref, n_dims, params)
 
   con = get_engine()
-  df.to_sql('interest_rates', con, if_exists='replace')
+  df.to_sql('interest_rate', con, if_exists='replace')
 
 def import_exr_data(
   source:str,
