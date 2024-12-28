@@ -7,10 +7,32 @@ import os
 
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.postgres.hooks.postgres import PostgresHook
+from pandas import DataFrame
 
-def get_conn():
+def get_engine():
   hook = PostgresHook(postgres_conn_id='pg_local')
-  return hook.get_conn()
+  return hook.get_sqlalchemy_engine()
+
+def import_data(
+  source:str,
+  resource: str,
+  flow_ref: str | list[str],
+  n_args: int,
+  params: dict = None) -> tuple[DataFrame, list]:
+
+  collector = SDMXCollector(source, resource)
+  data = collector.get_data(flow_ref,
+                           n_args=n_args,
+                           params=params)
+  print(collector.make_url(flow_ref,
+                           n_args=n_args,
+                           params=params))
+
+  df = SDMXCollector.sample_to_pandas(data)  
+  df, factors = SDMXCollector.factorize(df)
+
+  print("----------------- DF shape:", df.shape)
+  return df, factors
 
 def import_bop_data(
   source:str,
@@ -23,10 +45,10 @@ def import_bop_data(
                       key='bop_dimensions')
   n_dims = len(dims)
 
-  collector = SDMXCollector(source, resource)
-  data = collector.make_url(flow_ref,
-                           n_args=n_dims,
-                           params=params)
+  df, factors = import_data(source, resource, flow_ref, n_dims, params)
+
+  con = get_engine()
+  df.to_sql('balance_of_pay', con, if_exists='replace')
 
 def import_inr_data(
   source:str,
@@ -39,10 +61,10 @@ def import_inr_data(
                       key='inr_dimensions')
   n_dims = len(dims)
 
-  collector = SDMXCollector(source, resource)
-  data = collector.make_url(flow_ref,
-                           n_args=n_dims,
-                           params=params)
+  df, factors = import_data(source, resource, flow_ref, n_dims, params)
+
+  con = get_engine()
+  df.to_sql('interest_rates', con, if_exists='replace')
 
 def import_exr_data(
   source:str,
@@ -51,12 +73,12 @@ def import_exr_data(
   ti: TaskInstance,
   params: dict = None):
 
-  con = get_conn()
+  con = get_engine()
 
   dims = ti.xcom_pull(task_ids='exr_meta',
                       key='exr_dimensions')
 
-  collector = SDMXCollector(source, resource)
-  data = collector.make_url(flow_ref,
-                           params=params)
+  df, factors = import_data(source, resource, flow_ref, 0, params)
 
+  con = get_engine()
+  df.to_sql('ex_rates', con, if_exists='replace')
