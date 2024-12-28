@@ -87,7 +87,7 @@ services:
     environment:
       POSTGRES_USER: airflow
       POSTGRES_PASSWORD: airflow
-      POSTGRES_DB: airflow
+      POSTGRES_DB: forex
     volumes:
       - postgres-db-volume:/var/lib/postgresql/data
     healthcheck:
@@ -95,6 +95,8 @@ services:
       interval: 10s
       retries: 5
       start_period: 5s
+    ports:
+      - "5454:5432"
     restart: always
 
   airflow-webserver:
