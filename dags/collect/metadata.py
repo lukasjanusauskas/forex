@@ -14,15 +14,15 @@ class MetaData:
     
     self.dimensions = dimensions
     self.codelists = codelists
-
-  def codelist_to_df() -> pd.DataFrame:
-    pass
   
+  def export_codelists() -> dict[str, pd.DataFrame]:
+    pass
 
 class MetaDataCollector:
   DEFAULT_NAMESPACE = {
     'structure': '{http://www.sdmx.org/resources/sdmxml/schemas/v2_1/structure}',
-    'common': '{http://www.sdmx.org/resources/sdmxml/schemas/v2_1/common}'
+    'common': '{http://www.sdmx.org/resources/sdmxml/schemas/v2_1/common}',
+    'xml': '{http://www.w3.org/XML/1998/namespace}'
   }
 
   def __init__(self, source: str, resource: str,
@@ -143,18 +143,20 @@ class OECDMetaCollector(MetaDataCollector):
 
   def _get_codelist(self, meta: etree.Element) -> dict:
     # Unpack namespaces
-    structure, common = self.namespace['structure'], self.namespace['common']
+    structure, common, xml_nspace = (self.namespace['structure'],
+                                     self.namespace['common'],
+                                     self.namespace['xml'])
 
     code_lists = {}
     for codelist in meta.iter(f'{structure}Codelist'):
-          list_name = codelist.get('id')
-
-          # Get codes and coresponding names
           codes = [e.get('id') for e in codelist.iter(f'{structure}Code')]
-          names = [e.text for e in codelist.iter(f'{common}Name')]
+          names = [e.text for e in codelist.iter(f'{common}Name')
+                      if e.attrib[f'{xml_nspace}lang'] == "en"]
 
-          code_lists[list_name] = {code : name for code, name 
-                                               in zip(codes, names[::2])}
+          code_lists[codelist.get('id').lower()] = {
+                'code': codes,
+                'value': names[1:]
+          }
 
     return code_lists
 
@@ -188,8 +190,7 @@ class ECBMetaCollector(MetaDataCollector):
           codes = [e.get('id') for e in codelist.iter(f'{structure}Code')]
           names = [e.text for e in codelist.iter(f'{common}Name')]
 
-          code_lists[codelist] = {code : name for code, name 
-                                               in zip(codes, names[1::])}
+          code_lists[codelist.get('id').lower()] = {'code': codes, 'name': names[1::]}
 
     return code_lists
 

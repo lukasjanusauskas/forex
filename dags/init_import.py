@@ -13,7 +13,7 @@ default_args = {
 }
 
 with DAG(
-  dag_id='forex_elt_v1_02',
+  dag_id='forex_elt_v1_07',
   default_args=default_args,
   description='FOREX data ELT pipeline',
   start_date=datetime(2024, 12, 1),
@@ -64,7 +64,7 @@ with DAG(
       "flow_ref": ["OECD.SDD.TPS", "DSD_BOP@DF_BOP", ""],
       "params": {
         "format": "csv",
-        "startPeriod": "2024-Q2"
+        "startPeriod": "2024-Q3"
       }
     }
   )
@@ -78,7 +78,7 @@ with DAG(
       "flow_ref": ["OECD.SDD.STES", "DSD_KEI@DF_KEI", "4.0"],
       "params": {
         "format": "csv",
-        "startPeriod": "2024-Q2"
+        "startPeriod": "2024-Q3"
       }
     }
   )
@@ -92,7 +92,7 @@ with DAG(
       "flow_ref": "EXR",
       "params": {
         "format": "csvdata",
-        "startPeriod": "2024-12-20"
+        "startPeriod": "2024-12-27"
       }
     }
   )

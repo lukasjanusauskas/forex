@@ -14,25 +14,34 @@ def get_engine():
   return hook.get_sqlalchemy_engine()
 
 def import_data(
+  prefix: str,
+  ti: TaskInstance,
   source:str,
   resource: str,
   flow_ref: str | list[str],
-  n_args: int,
-  params: dict = None) -> tuple[DataFrame, list]:
+  params: dict = None,
+  n_dims: int | None = None) -> tuple[DataFrame, list]:
+
+  if n_dims is None:
+    dims = ti.xcom_pull(task_ids=f'{prefix}_meta', 
+                      key=f'{prefix}_dimensions')
+    n_dims = len(dims)
 
   collector = SDMXCollector(source, resource)
   data = collector.get_data(flow_ref,
-                           n_args=n_args,
+                           n_args=n_dims,
                            params=params)
-  print(collector.make_url(flow_ref,
-                           n_args=n_args,
-                           params=params))
 
   df = SDMXCollector.sample_to_pandas(data)  
   df, factors = SDMXCollector.factorize(df)
 
-  print("----------------- DF shape:", df.shape)
   return df, factors
+
+def export_dim_tbls(prefix: str, con, tbls: dict):
+  for col_name in tbls:
+    tbl_name = f'{prefix}_{col_name.lower()}'
+    exportable_df = DataFrame(tbls[col_name])
+    exportable_df.to_sql(tbl_name, con=con, if_exists='replace')
 
 def import_bop_data(
   source:str,
@@ -41,14 +50,12 @@ def import_bop_data(
   ti: TaskInstance,
   params: dict = None):
 
-  dims = ti.xcom_pull(task_ids='bop_meta', 
-                      key='bop_dimensions')
-  n_dims = len(dims)
-
-  df, factors = import_data(source, resource, flow_ref, n_dims, params)
+  df, factors = import_data('bop', ti, source, resource, flow_ref, params)
 
   con = get_engine()
   df.to_sql('balance_of_pay', con, if_exists='replace')
+
+  export_dim_tbls('bop', con, factors)
 
 def import_inr_data(
   source:str,
@@ -57,14 +64,12 @@ def import_inr_data(
   ti: TaskInstance,
   params: dict = None):
 
-  dims = ti.xcom_pull(task_ids='inr_meta',
-                      key='inr_dimensions')
-  n_dims = len(dims)
-
-  df, factors = import_data(source, resource, flow_ref, n_dims, params)
+  df, factors = import_data('inr', ti, source, resource, flow_ref, params)
 
   con = get_engine()
   df.to_sql('interest_rate', con, if_exists='replace')
+
+  export_dim_tbls('int_rates', con, factors)
 
 def import_exr_data(
   source:str,
@@ -73,12 +78,9 @@ def import_exr_data(
   ti: TaskInstance,
   params: dict = None):
 
-  con = get_engine()
-
-  dims = ti.xcom_pull(task_ids='exr_meta',
-                      key='exr_dimensions')
-
-  df, factors = import_data(source, resource, flow_ref, 0, params)
+  df, factors = import_data('exr', ti, source, resource, flow_ref, params, n_dims=0)
 
   con = get_engine()
-  df.to_sql('ex_rates', con, if_exists='replace')
+  df.to_sql('exchange_rates', con, if_exists='replace')
+
+  export_dim_tbls('ex_rates', con, factors)

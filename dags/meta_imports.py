@@ -8,11 +8,10 @@ import pandas as pd
 def export_meta(codelists: dict, prefix: str):
   con = get_engine()
 
-  for key, code_dict in codelists:
+  for key, code_dict in codelists.items():
     # Name the table {shortened name of the table}_{name of the variable}
     tbl_name = f"{prefix}_{key.lower()}_codelist"
 
-    # Convert dictionary to dataframe
     tbl = pd.DataFrame(code_dict)
     tbl.to_sql(name=tbl_name, con=con, if_exists="replace")
 
@@ -43,7 +42,7 @@ def import_inr_meta(source: str,
   ti.xcom_push(key='inr_dimensions',
                value=metadata.dimensions)
 
-  export_meta(metadata.codelists, prefix="inr")
+  export_meta(metadata.codelists, prefix="int_rates")
 
 def improt_exr_meta(source: str,
                     resource: str,

@@ -152,9 +152,9 @@ class SDMXCollector:
     return df
 
   @staticmethod
-  def factorize(df: pd.DataFrame):
+  def factorize(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     obj_cols = df.keys()[df.dtypes == "object"]
-    factor_array = []
+    factor_dict = {}
 
     for col in obj_cols:
       # Factorizes object columns
@@ -164,6 +164,6 @@ class SDMXCollector:
       # Adds to a list of dimension tables
       # In this stage they are Python tuples
       # later they will be turned into pandas Dataframes and exported to Postgres
-      factor_array.append( (col, factors) )
+      factor_dict[col] = {'name': factors}
 
-      return df, factor_array
+    return df, factor_dict
