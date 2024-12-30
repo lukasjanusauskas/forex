@@ -28,6 +28,7 @@ SELECT "REF_AREA" as entity,
 
 -- I also need to extract currencies, because we will need to join macroecomic indicator tables with exchange rate tables
 
+DROP TABLE IF EXISTS currencies;
 CREATE TABLE currencies AS
 (
 	SELECT DISTINCT ON ("CURRENCY", "REF_AREA")

@@ -32,9 +32,13 @@ def import_data(
                            n_args=n_dims,
                            params=params)
 
-  df = SDMXCollector.sample_to_pandas(data)  
-  df, factors = SDMXCollector.factorize(df)
+  df = SDMXCollector.sample_to_pandas(data, parse_dates=['TIME_PERIOD'])  
+  print(df.dtypes)
 
+  return df
+
+def factorize_data(df) -> tuple[DataFrame, dict]:
+  df, factors = SDMXCollector.factorize(df)
   return df, factors
 
 def export_dim_tbls(prefix: str, con, tbls: dict):
@@ -50,7 +54,15 @@ def import_bop_data(
   ti: TaskInstance,
   params: dict = None):
 
-  df, factors = import_data('bop', ti, source, resource, flow_ref, params)
+  df = import_data('bop', ti, source, resource, flow_ref, params)
+
+  df = df[df['FREQ'] == 'Q']
+  df['TIME_PERIOD'] = df.loc[:, 'TIME_PERIOD'].astype('datetime64[ns]')
+
+  df, factors = factorize_data(df)
+
+  assert(df.dtypes['TIME_PERIOD'] == 'datetime64[ns]')
+  assert(df.shape[0] > 0)
 
   con = get_engine()
   df.to_sql('balance_of_pay', con, if_exists='replace')
@@ -64,7 +76,20 @@ def import_inr_data(
   ti: TaskInstance,
   params: dict = None):
 
-  df, factors = import_data('inr', ti, source, resource, flow_ref, params)
+  df = import_data('inr', ti, source, resource, flow_ref, params)
+
+  # # Because of different date formats that are a cause of 
+  # #   different indicators being imported, we have to:
+
+  # # - Filter out the formats, that do not match
+  # # - THIS IS A VERY IMPORTANT DATA ASSUMPTION: 
+  # #   interest rate indicator has no missing or corupted date formats.
+  # #   If one would be present - it would be ommited.  
+
+  # df = df[df['TIME_PERIOD'].str.match(r'\d{4}')]
+  # df["TIME_PERIOD"] = df.loc[:, "TIME_PERIOD"].astype("datetime64[ns]")
+
+  df, factors = factorize_data(df)
 
   con = get_engine()
   df.to_sql('interest_rate', con, if_exists='replace')
@@ -78,7 +103,8 @@ def import_exr_data(
   ti: TaskInstance,
   params: dict = None):
 
-  df, factors = import_data('exr', ti, source, resource, flow_ref, params, n_dims=0)
+  df = import_data('exr', ti, source, resource, flow_ref, params, n_dims=0)
+  df, factors = factorize_data(df)
 
   con = get_engine()
   df.to_sql('exchange_rates', con, if_exists='replace')

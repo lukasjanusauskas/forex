@@ -6,7 +6,7 @@
 
 
 -- Select currencies present in both ex_rates and balance_of_pay
-DROP TABLE dim_currency;
+DROP TABLE IF EXISTS dim_currency;
 CREATE TEMPORARY TABLE dim_currency
 AS (
 	SELECT bop_currency.name, 
@@ -17,7 +17,7 @@ AS (
 );
 
 -- Select entities, that appear at both interest_rate and balance_of_pay 
-DROP TABLE dim_entity;
+DROP TABLE IF EXISTS dim_entity;
 CREATE TEMPORARY TABLE dim_entity
 AS (
 	WITH max_int AS (
@@ -99,7 +99,7 @@ CREATE TEMPORARY TABLE tmp_master AS
 );
 
 -- Create entity dimension table
-DROP TABLE entity_dimension_tbl;
+DROP TABLE IF EXISTS entity_dimension_tbl;
 CREATE TEMPORARY TABLE entity_dimension_tbl AS (
 	SELECT dim_entity.index AS index,
 		   dim_currency.name AS currency_code,

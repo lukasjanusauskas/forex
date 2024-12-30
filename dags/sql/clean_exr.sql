@@ -75,6 +75,7 @@ WHERE cnt > 1;
 -- If we were to ommit all of the other rows, we would obtain other currencies' price against EURO
 -- This is exactly, what we want, thus I will only keep CURRENCY and TIME_PERIOD
 
+DROP TABLE IF EXISTS ex_rates;
 CREATE TABLE ex_rates
 AS
 SELECT "CURRENCY" as currency,
