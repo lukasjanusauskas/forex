@@ -64,6 +64,7 @@ with DAG(
       "flow_ref": ["OECD.SDD.TPS", "DSD_BOP@DF_BOP", ""],
       "params": {
         "format": "csv",
+        "startPeriod": "2014-Q1"
       }
     }
   )
@@ -77,6 +78,7 @@ with DAG(
       "flow_ref": ["OECD.SDD.STES", "DSD_KEI@DF_KEI", "4.0"],
       "params": {
         "format": "csv",
+        "startPeriod": "2014-Q1"
       }
     }
   )
@@ -90,6 +92,7 @@ with DAG(
       "flow_ref": "EXR",
       "params": {
         "format": "csvdata",
+        "startPeriod": "2015-01-01"
       }
     }
   )
