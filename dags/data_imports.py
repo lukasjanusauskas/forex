@@ -33,7 +33,6 @@ def import_data(
                            params=params)
 
   df = SDMXCollector.sample_to_pandas(data, parse_dates=['TIME_PERIOD'])  
-  print(df.dtypes)
 
   return df
 

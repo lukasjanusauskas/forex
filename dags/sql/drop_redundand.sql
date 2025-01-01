@@ -9,6 +9,6 @@ SELECT drop_tables(table_name)
 FROM information_schema.tables
 WHERE table_name ~ '(bop_)|(^int)|(exr?_)|(balance_)|(currencies)|(^exch)' AND
 	  table_name NOT IN ('master',
-						 'bop_measure',
-						 'int_rates_measure',
-						 'entity_dimension')
+						 'bop_measure_final',
+						 'int_rates_measure_final',
+						 'entity_dimension_final');

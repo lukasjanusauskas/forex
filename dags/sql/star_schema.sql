@@ -77,12 +77,12 @@ GROUP BY bop.entity, bop.measure, bop.date, inr.meas
 HAVING COUNT(*) > 1;
 
 -- Create temporary fact table
-DROP TABLE IF EXISTS tmp_master;
-CREATE TEMPORARY TABLE tmp_master AS
+DROP TABLE IF EXISTS master;
+CREATE TABLE master AS
 (
 	SELECT dim_entity.index AS entity,
 		   bop.measure AS bop_measure,
-		   inr.meas AS measure,
+		   inr.meas AS inr_measure,
 		   ex_rates.time_period AS date,
 		   bop.value AS bop_value,
 		   inr.value AS interest_rate,
@@ -90,8 +90,8 @@ CREATE TEMPORARY TABLE tmp_master AS
 	FROM balance_of_pay AS bop JOIN currencies AS curr	
 			ON bop.entity = curr.entity_id
 			JOIN dim_currency ON curr.currency_id = dim_currency.ex_id
-			JOIN ex_rates ON dim_currency.ex_id = ex_rates.currency
-				AND EXTRACT(QUARTER FROM ex_rates.time_period) = EXTRACT(QUARTER FROM bop.date)
+			JOIN ex_rates ON dim_currency.ex_id = ex_rates.currency 
+				AND EXTRACT(QUARTER FROM ex_rates.time_period) = EXTRACT(QUARTER FROM bop.date) + 1
 				AND EXTRACT(YEAR FROM ex_rates.time_period) = EXTRACT(YEAR FROM bop.date)
 			JOIN dim_entity ON dim_entity.bop_id = bop.entity
 			JOIN interest_rate AS inr ON inr.entity = dim_entity.int_id
@@ -100,7 +100,7 @@ CREATE TEMPORARY TABLE tmp_master AS
 
 -- Create entity dimension table
 DROP TABLE IF EXISTS entity_dimension_tbl;
-CREATE TEMPORARY TABLE entity_dimension_tbl AS (
+CREATE TABLE entity_dimension_tbl AS (
 	SELECT dim_entity.index AS index,
 		   dim_currency.name AS currency_code,
 		   dim_entity.name AS country_code
@@ -108,64 +108,3 @@ CREATE TEMPORARY TABLE entity_dimension_tbl AS (
 		 JOIN currencies ON dim_currency.bop_id = currencies.currency_id
 		 JOIN dim_entity ON dim_entity.bop_id = currencies.entity_id
 );
-
--- Run experiments: if constraints cannot be created - something isn't correct
--- If such errors occur, temporary tables couldn't be turned into actual tables
-
--- Dimension table primary key creation
-ALTER TABLE entity_dimension_tbl
-ADD PRIMARY KEY (index);
-
--- Foreign key for entity
-ALTER TABLE tmp_master
-ADD CONSTRAINT entity_fk
-FOREIGN KEY (entity) REFERENCES entity_dimension_tbl (index);
-
--- There is no way to test, whether we will be able to create foreign keys for bop and inr measures
-CREATE TABLE master AS 
-SELECT * FROM tmp_master;
-
-DROP TABLE tmp_master;
-
-CREATE TABLE entity_dimension AS 
-SELECT * FROM entity_dimension_tbl;
-
-DROP TABLE entity_dimension_tbl;
-
--- Create primary and foreign keys
--- Primary key for entity dimension table
-
-ALTER TABLE entity_dimension
-ADD PRIMARY KEY (index);
-
--- Foreign key for entity
-
-ALTER TABLE master
-ADD CONSTRAINT entity_fk
-FOREIGN KEY (entity) REFERENCES entity_dimension (index); 
-
--- Primary key for measure dimension tables
-
-ALTER TABLE bop_measure
-ADD PRIMARY KEY (index);
-
-ALTER TABLE int_rates_measure
-ADD PRIMARY KEY (index);
-
--- Foreign keys for measure dimension tables
-
-ALTER TABLE master
-ADD CONSTRAINT bop_measure_fk
-FOREIGN KEY (bop_measure) REFERENCES bop_measure (index); 
-
-ALTER TABLE master
-RENAME COLUMN measure TO inr_measure;
-
-ALTER TABLE master
-ADD CONSTRAINT inr_measure_fk
-FOREIGN KEY (inr_measure) REFERENCES int_rates_measure (index); 
-
--- Primary key for the fact table
-
-ALTER TABLE master
-ADD PRIMARY KEY (entity, date, bop_measure, inr_measure);
