@@ -3,3 +3,4 @@ pandas
 sqlalchemy
 psycopg2
 statsmodels==0.14.4
+scikit-learn==1.6.0
