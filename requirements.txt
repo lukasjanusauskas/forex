@@ -4,3 +4,7 @@ sqlalchemy
 psycopg2
 statsmodels==0.14.4
 scikit-learn==1.6.0
+dash==2.18.2
+dash-core-components==2.0.0
+dash-html-components==2.0.0
+dash-table==5.0.0
