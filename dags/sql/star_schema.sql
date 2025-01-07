@@ -63,7 +63,7 @@ CREATE TABLE master AS
 			ON bop.entity = curr.entity_id
 			JOIN dim_currency ON curr.currency_id = dim_currency.bop_id
 			JOIN ex_rates ON dim_currency.ex_id = ex_rates.currency 
-				AND EXTRACT(QUARTER FROM ex_rates.time_period) = EXTRACT(QUARTER FROM bop.date) + 1
+				AND EXTRACT(QUARTER FROM ex_rates.time_period) = EXTRACT(QUARTER FROM bop.date)
 				AND EXTRACT(YEAR FROM ex_rates.time_period) = EXTRACT(YEAR FROM bop.date)
 			JOIN dim_entity ON dim_entity.bop_id = bop.entity
 			JOIN interest_rate AS inr ON inr.entity = dim_entity.int_id

@@ -13,7 +13,7 @@ default_args = {
 }
 
 with DAG(
-  dag_id='forex_elt_v1_14',
+  dag_id='forex_elt_v1_16',
   default_args=default_args,
   description='FOREX data ELT pipeline',
   start_date=datetime(2024, 12, 1),
