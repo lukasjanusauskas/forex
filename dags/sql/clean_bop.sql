@@ -20,7 +20,7 @@ SELECT "REF_AREA" as entity,
 		JOIN bop_accounting_entry AS ent ON bop."ACCOUNTING_ENTRY" = ent.index
 		JOIN bop_adjustment AS adj ON bop."ADJUSTMENT" = adj.index
 		JOIN bop_measure AS meas ON bop."MEASURE" = meas.index
-			WHERE freq.name = 'Q' AND
+			WHERE freq.name IN ('Q', 'A') AND
 				  unit.name = 'USD_EXC' AND
 				  ent.name = 'B' AND
 				  adj.name = 'N' AND
