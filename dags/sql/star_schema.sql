@@ -63,12 +63,21 @@ CREATE TABLE master AS
 			ON bop.entity = curr.entity_id
 			JOIN dim_currency ON curr.currency_id = dim_currency.bop_id
 			JOIN ex_rates ON dim_currency.ex_id = ex_rates.currency 
-				AND EXTRACT(QUARTER FROM ex_rates.time_period) = EXTRACT(QUARTER FROM bop.date)
-				AND EXTRACT(YEAR FROM ex_rates.time_period) = EXTRACT(YEAR FROM bop.date)
+				AND EXTRACT(QUARTER FROM ex_rates.time_period - bop.date) < 1
+				AND ex_rates.time_period > bop.date
 			JOIN dim_entity ON dim_entity.bop_id = bop.entity
 			JOIN interest_rate AS inr ON inr.entity = dim_entity.int_id
 				 AND inr.date = bop.date
 );
+
+SELECT ent.currency_code, date, bop_value, interest_rate
+FROM master JOIN entity_dimension_final AS ent
+	ON master.entity = ent.index
+	ORDER BY date DESC;
+
+ORDER BY date;
+
+SELECT * FROM entity_dimension_final;
 
 -- Create entity dimension table
 DROP TABLE IF EXISTS entity_dimension_tbl;

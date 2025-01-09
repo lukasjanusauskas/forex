@@ -1,4 +1,5 @@
-from datetime import datetime, timedelta
+# 
+from datetime import datetime
 
 from airflow import DAG
 from airflow.operators.python import PythonOperator
@@ -9,15 +10,15 @@ from data_imports import import_bop_data, import_inr_data, import_exr_data
 
 default_args = {
     'owner': 'lukas',
-    'retries': 0
+    'retries': 3
 }
 
 with DAG(
-  dag_id='forex_elt_v1_18',
+  dag_id='update_elt_v0',
   default_args=default_args,
-  description='FOREX data ELT pipeline',
+  description='FOREX data updating ELT pipeline',
   start_date=datetime(2024, 12, 1),
-  schedule_interval='@once'
+  schedule_interval='@daily'
 ) as dag:
 
   # Definition of metadata import tasks
@@ -64,7 +65,7 @@ with DAG(
       "flow_ref": ["OECD.SDD.TPS", "DSD_BOP@DF_BOP", ""],
       "params": {
         "format": "csv",
-        "startPeriod": "2023-Q1"
+        "startPeriod": "2014-Q1"
       }
     }
   )
@@ -78,7 +79,7 @@ with DAG(
       "flow_ref": ["OECD.SDD.STES", "DSD_KEI@DF_KEI", "4.0"],
       "params": {
         "format": "csv",
-        "startPeriod": "2023-Q4"
+        "startPeriod": "2014-Q1"
       }
     }
   )
@@ -92,7 +93,7 @@ with DAG(
       "flow_ref": "EXR",
       "params": {
         "format": "csvdata",
-        "startPeriod": "2023-09-30"
+        "startPeriod": "2015-01-01"
       }
     }
   )
@@ -115,32 +116,8 @@ with DAG(
     sql="sql/clean_exr.sql"
   )
 
-  # make_star = SQLExecuteQueryOperator(
-  #   task_id = "make_star",
-  #   conn_id='pg_local',
-  #   sql="sql/star_schema.sql"
-  # )
-
-  # dimension_tbls = SQLExecuteQueryOperator(
-  #   task_id = "dimension_tbls",
-  #   conn_id='pg_local',
-  #   sql="sql/dimension_tbls.sql"
-  # )
-
-  # drop_useless = SQLExecuteQueryOperator(
-  #   task_id = "drop_useless",
-  #   conn_id='pg_local',
-  #   sql="sql/drop_redundand.sql"
-  # )
-
   (
-  # DAG definition
-  # ELT pipelines for each individual source
   [bop_meta >> bop_import >> bop_clean,   # Balance of pay
    inr_meta >> inr_import >> inr_clean,   # Interest rates
    exr_meta >> exr_import >> exr_clean]   # Exchange rates
-
-  #  >> make_star                           # Make a star schema from a relational DB 
-  #  >> dimension_tbls                      # Set up dimension tables
-  #  >> drop_useless                        # Drop useless tables
   )
