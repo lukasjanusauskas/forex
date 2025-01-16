@@ -13,7 +13,7 @@ default_args = {
 }
 
 with DAG(
-  dag_id='forex_elt_v1_20',
+  dag_id='forex_elt_v1_21',
   default_args=default_args,
   description='FOREX data ELT pipeline',
   start_date=datetime(2024, 12, 1),
@@ -64,7 +64,7 @@ with DAG(
       "flow_ref": ["OECD.SDD.TPS", "DSD_BOP@DF_BOP", ""],
       "params": {
         "format": "csv",
-        "startPeriod": "2024-Q1"
+        "startPeriod": "2015-Q1"
       }
     }
   )
@@ -78,7 +78,7 @@ with DAG(
       "flow_ref": ["OECD.SDD.STES", "DSD_KEI@DF_KEI", "4.0"],
       "params": {
         "format": "csv",
-        "startPeriod": "2021-Q1"
+        "startPeriod": "2015-Q1"
       }
     }
   )
@@ -92,7 +92,7 @@ with DAG(
       "flow_ref": "EXR",
       "params": {
         "format": "csvdata",
-        "startPeriod": "2024-04-01"
+        "startPeriod": "2015-01-01"
       }
     }
   )
@@ -115,23 +115,31 @@ with DAG(
     sql="sql/clean_exr.sql"
   )
 
-  # make_star = SQLExecuteQueryOperator(
-  #   task_id = "make_star",
-  #   conn_id='pg_local',
-  #   sql="sql/star_schema.sql"
-  # )
+  make_star = SQLExecuteQueryOperator(
+    task_id = "make_star",
+    conn_id='pg_local',
+    sql="sql/star_schema.sql"
+  )
 
-  # dimension_tbls = SQLExecuteQueryOperator(
-  #   task_id = "dimension_tbls",
-  #   conn_id='pg_local',
-  #   sql="sql/dimension_tbls.sql"
-  # )
+  dimension_tbls = SQLExecuteQueryOperator(
+    task_id = "dimension_tbls",
+    conn_id='pg_local',
+    sql="sql/dimension_tbls.sql"
+  )
 
-  # drop_useless = SQLExecuteQueryOperator(
-  #   task_id = "drop_useless",
-  #   conn_id='pg_local',
-  #   sql="sql/drop_redundand.sql"
-  # )
+  keys_indices = SQLExecuteQueryOperator(
+    task_id = "keys_indices",
+    conn_id='pg_local',
+    sql="sql/keys_indices.sql"
+  )
+
+
+  drop_redundant = SQLExecuteQueryOperator(
+    task_id = "drop_redundand",
+    conn_id='pg_local',
+    sql="sql/drop_redundand.sql"
+  )
+
 
   (
   # DAG definition
@@ -140,7 +148,8 @@ with DAG(
    inr_meta >> inr_import >> inr_clean,   # Interest rates
    exr_meta >> exr_import >> exr_clean]   # Exchange rates
 
-  #  >> make_star                           # Make a star schema from a relational DB 
-  #  >> dimension_tbls                      # Set up dimension tables
-  #  >> drop_useless                        # Drop useless tables
+   >> make_star                           # Make a star schema from a relational DB 
+   >> dimension_tbls                      # Set up dimension tables
+   >> keys_indices                        # Create primary keys and indices
+   >> drop_redundant                      # Drop useless tables
   )

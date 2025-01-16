@@ -74,16 +74,12 @@ def import_inr_data(
 
   df = import_data('inr', ti, source, resource, flow_ref, params)
 
-  # Because of different date formats that are a cause of 
-  #   different indicators being imported, we have to:
-
-  # - Filter out the formats, that do not match
-  # - THIS IS A VERY IMPORTANT DATA ASSUMPTION: 
-  #   interest rate indicator has no missing or corupted date formats.
-  #   If one would be present - it would be ommited.  
-
-  df = df[df['TIME_PERIOD'].str.match(r'\d{4}-Q\d')]
-  df["TIME_PERIOD"] = df.loc[:, "TIME_PERIOD"].astype("datetime64[ns]")
+  try:
+    df = df[df['TIME_PERIOD'].str.match(r'\d{4}-Q\d')]
+    df["TIME_PERIOD"] = df.loc[:, "TIME_PERIOD"].astype("datetime64[ns]")
+  except AttributeError:
+    print(df.loc[0, 'TIME_PERIOD'])
+    print(df['TIME_PERIOD'].dtype)
 
   df, factors = factorize_data(df)
 
