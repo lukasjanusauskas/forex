@@ -23,9 +23,9 @@ CREATE TABLE entity_dimension_final AS (
 		   area_cl.value AS area_name,
 		   curr_cl.value AS currency_name
 	FROM entity_dimension_tbl AS ed 
-		JOIN bop_cl_currency_codelist AS curr_cl
-		ON ed.currency_code = curr_cl.code
-		JOIN bop_cl_area_codelist AS area_cl
-		ON ed.country_code = area_cl.code
+		LEFT JOIN bop_cl_currency_codelist AS curr_cl
+			ON ed.currency_code = curr_cl.code
+		LEFT JOIN bop_cl_area_codelist AS area_cl
+			ON ed.country_code = area_cl.code
 );
 DROP TABLE entity_dimension_tbl;

@@ -8,7 +8,7 @@ $$ LANGUAGE plpgsql;
 
 SELECT drop_tables(table_name)
 FROM information_schema.tables
-WHERE table_name ~ '(bop_)|(int_)|(exr?_)'
+WHERE table_name ~ '(bop_)|(int_)|(exr?_)|(exch)'
 	AND NOT table_name ~ 'final$'
 	AND table_name <> 'ex_rates';
 

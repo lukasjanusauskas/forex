@@ -1,9 +1,5 @@
 from collect.collect import SDMXCollector
-
-from sqlalchemy.engine import URL
-from sqlalchemy import create_engine
-from dotenv import load_dotenv
-import os
+from datetime import date
 
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.postgres.hooks.postgres import PostgresHook
@@ -35,6 +31,10 @@ def import_data(
   df = SDMXCollector.sample_to_pandas(data, parse_dates=['TIME_PERIOD'])  
 
   return df
+
+"""
+Initial import functions
+"""
 
 def factorize_data(df) -> tuple[DataFrame, dict]:
   df, factors = SDMXCollector.factorize(df)
@@ -106,8 +106,35 @@ def import_exr_data(
 
   export_dim_tbls('ex_rates', con, factors)
 
-def get_update_date():
+"""
+---------- Update functions -----------------------------------------
+"""
+
+def set_update_date(ti: TaskInstance):
   con = get_engine().connect()
-  max_date = con.execute("SELECT MAX(date) FROM master")
+
+  max_date = con.execute("SELECT MAX(time_period) FROM ex_rates")\
+                .mappings()\
+                .all()
   
-  print(max_date.mappings().all())
+  ti.xcom_push(key="last_updated",
+               value=max_date[0]['max'])
+
+def import_exr_updates(
+    ti: TaskInstance,
+    source:str,
+    resource: str,
+    flow_ref: str | list[str],
+    params: dict = None):
+  
+  last_updated = ti.xcom_pull(task_ids='get_date',
+                              key='last_updated')
+
+  update_after = last_updated.date().isoformat()
+  update_after = "2025-01-14"
+  params['updatedAfter'] = update_after
+
+  df = import_data('exr', ti, source, resource, flow_ref, params, n_dims=0)
+  
+  con = get_engine()
+  df.to_sql('updates', con, if_exists='replace')

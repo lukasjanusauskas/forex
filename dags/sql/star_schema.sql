@@ -56,7 +56,7 @@ CREATE TABLE entity_dimension_tbl AS (
 		   dim_entity.name AS country_code
 	FROM dim_currency 
 		 JOIN currencies ON dim_currency.bop_id = currencies.currency_id
-		 JOIN dim_entity ON dim_entity.bop_id = currencies.entity_id
+		 FULL JOIN dim_entity ON dim_entity.bop_id = currencies.entity_id
 );
 
 -- Create temporary fact table
