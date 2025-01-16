@@ -109,3 +109,9 @@ def import_exr_data(
   df.to_sql('exchange_rates', con, if_exists='replace')
 
   export_dim_tbls('ex_rates', con, factors)
+
+def get_update_date():
+  con = get_engine().connect()
+  max_date = con.execute("SELECT MAX(date) FROM master")
+  
+  print(max_date.mappings().all())

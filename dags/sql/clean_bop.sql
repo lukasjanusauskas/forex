@@ -26,7 +26,9 @@ SELECT "REF_AREA" as entity,
 				  adj.name = 'N' AND
 				  meas.name IN ('G', 'S', 'CA');
 
--- I also need to extract currencies, because we will need to join macroecomic indicator tables with exchange rate tables
+-- currencies table:
+-- currency_id: index of currency in balance_of_pay table(intermediate table)
+-- entity_id: index of the country in balance_of_pay table
 
 DROP TABLE IF EXISTS currencies;
 CREATE TABLE currencies AS

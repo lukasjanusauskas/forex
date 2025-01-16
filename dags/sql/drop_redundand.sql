@@ -12,3 +12,6 @@ WHERE table_name ~ '(bop_)|(^int)|(exr?_)|(balance_)|(currencies)|(^exch)' AND
 						 'bop_measure_final',
 						 'int_rates_measure_final',
 						 'entity_dimension_final');
+
+SELECT * FROM master
+ORDER BY date DESC;

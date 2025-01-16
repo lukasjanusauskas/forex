@@ -52,32 +52,26 @@ WHERE bop_id IN
 DROP TABLE IF EXISTS master;
 CREATE TABLE master AS
 (
-	SELECT dim_entity.index AS entity,
-		   bop.measure AS bop_measure,
-		   inr.meas AS inr_measure,
-		   ex_rates.time_period AS date,
-		   bop.value AS bop_value,
-		   inr.value AS interest_rate,
+	SELECT bop.entity,
+			ex_rates.currency,
+			bop.value,
+			inr.value,
+			ex_rates.time_period AS date,
 		   ex_rates.rate AS ex_rate
-	FROM balance_of_pay AS bop JOIN currencies AS curr	
-			ON bop.entity = curr.entity_id
-			JOIN dim_currency ON curr.currency_id = dim_currency.bop_id
-			JOIN ex_rates ON dim_currency.ex_id = ex_rates.currency 
-				AND EXTRACT(QUARTER FROM ex_rates.time_period - bop.date) < 1
+	FROM ex_rates 
+		JOIN dim_currency ON ex_rates.currency = dim_currency.ex_id 
+		JOIN currencies AS curr ON curr.currency_id = dim_currency.bop_id
+		LEFT JOIN balance_of_pay AS bop ON bop.entity = curr.entity_id
+				AND EXTRACT( MONTH FROM ex_rates.time_period ) - EXTRACT(MONTH FROM bop.date) < 3
 				AND ex_rates.time_period > bop.date
-			JOIN dim_entity ON dim_entity.bop_id = bop.entity
-			JOIN interest_rate AS inr ON inr.entity = dim_entity.int_id
-				 AND inr.date = bop.date
+				AND EXTRACT( YEAR FROM ex_rates.time_period) = EXTRACT(YEAR FROM bop.date)
+		LEFT JOIN dim_entity ON dim_entity.bop_id = bop.entity
+		LEFT JOIN interest_rate AS inr ON inr.entity = dim_entity.int_id
+			AND inr.date = bop.date
+	ORDER BY date DESC;
 );
 
-SELECT ent.currency_code, date, bop_value, interest_rate
-FROM master JOIN entity_dimension_final AS ent
-	ON master.entity = ent.index
-	ORDER BY date DESC;
-
-ORDER BY date;
-
-SELECT * FROM entity_dimension_final;
+SELECT * FROM 
 
 -- Create entity dimension table
 DROP TABLE IF EXISTS entity_dimension_tbl;
