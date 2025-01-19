@@ -22,12 +22,13 @@ con <- dbConnect("PostgreSQL",
                  user="airflow",
                  password="airflow")
 
-# Get data tables for quality checks
+# Get data tables
 ex_rates <- dbReadTable(con, 'ex_rates')
-balance_of_pay <- dbReadTable(con, 'balance_of_pay')
-interest_rate <- dbReadTable(con, 'interest_rate')
+master <- dbReadTable(con, 'master')
 
 # TSA ########################################################################## 
+
+# Periodicity ##################################################################
 
 p.values.nolag <- ex_rates %>% 
   group_by(currency) %>% 
@@ -64,6 +65,8 @@ ex_rates %>%
 # Which is to be excepted, however it means, that we need to construct 
 # a different time series(weekly aggregates for example, or use windowing), 
 # to not get a rubbish forecast.
+
+# Uni-variate ARIMA forecast ###############################################################
 
 test_sample_arima <- function(x) {
   model <- auto.arima(x)
@@ -115,3 +118,70 @@ results %>%
   facet_wrap(~curr, scales='free_y')
 
 # For most currencies, this forecast is horrible, however, I will try to improve on it with XGBoost later
+
+# Cross-correlation ############################################################
+
+# Get quarterly ex rates aggregates from master
+# TODO: fix aggregate calculation - it doesn't take into account measures
+
+aggregates <- master %>% 
+  drop_na() %>% 
+  group_by(currency, year(date), quarter(date)) %>% 
+  summarize(
+    mean_rate = mean(rate),
+    min_rate = min(rate),
+    max_rate = max(rate),
+    median_rate = median(rate),
+    min_bop = min(bop_value, na.rm = TRUE),
+    min_inr = min(inr_value, na.rm = TRUE)
+  )
+
+# For each currency get the ccf and plot it
+
+ccf_results <- aggregates %>% 
+  group_by(currency) %>% 
+  mutate(diff_inr = min_inr - lag(min_inr)) %>% 
+  drop_na() %>% 
+  reframe(
+    ccf_lag = ccf(min_rate, diff_inr)$lag,
+    ccf_val = ccf(min_rate, diff_inr)$acf
+  )
+
+ccf_results %>% 
+  ggplot(aes(x = ccf_lag, y = ccf_val)) +
+    geom_point() +
+    geom_segment( aes(x = ccf_lag, xend = ccf_lag, y = 0, yend = ccf_val) ) +
+    geom_line(aes(x = ccf_lag), y = 0.5, 
+              col='blue', 
+              linewidth=0.3, 
+              linetype = "dashed") +
+  facet_wrap(~currency)
+
+# It doesn't appear, as if the correlation is really strong, and in some cases 
+# it isn't present, however this needs further inquiry, since a 
+# rapid change may indicate a shift in demand for the currency. 
+
+ccf_results <- aggregates %>% 
+  group_by(currency) %>% 
+  mutate(diff_bop = min_bop - lag(min_bop)) %>% 
+  drop_na() %>% 
+  reframe(
+    ccf_lag_diff = ccf(min_rate, diff_bop)$lag,
+    ccf_val_diff = ccf(min_rate, diff_bop)$acf,
+    ccf_lag = ccf(min_rate, min_bop)$lag,
+    ccf_val = ccf(min_rate, min_bop)$acf
+  )
+
+ccf_results %>% 
+  ggplot(aes(x = ccf_lag, y = ccf_val)) +
+  geom_point() +
+  geom_segment( aes(x = ccf_lag, xend = ccf_lag, y = 0, yend = ccf_val) ) +
+  geom_line(aes(x = ccf_lag), y = 0.5, 
+            col='blue', 
+            linewidth=0.3, 
+            linetype = "dashed") +
+  geom_line(aes(x = ccf_lag), y = -0.5, 
+            col='blue', 
+            linewidth=0.3, 
+            linetype = "dashed") +
+  facet_wrap(~currency)
