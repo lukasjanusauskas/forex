@@ -1,5 +1,6 @@
 pyarrow
 pandas
+numpy==1.26.4
 sqlalchemy
 psycopg2
 statsmodels==0.14.4
