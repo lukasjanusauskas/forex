@@ -3,4 +3,7 @@ _*/
 .env
 raw_metadata/
 logs/
-.Rproj.user
+*.Rproj.user
+*.Rproj
+*.RData
+*.RHistory
