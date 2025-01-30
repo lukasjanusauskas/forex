@@ -13,7 +13,7 @@ default_args = {
 }
 
 with DAG(
-  dag_id='update_elt_v0_02',
+  dag_id='update_elt_v1_01',
   default_args=default_args,
   description='FOREX data updating ELT pipeline',
   start_date=datetime(2024, 12, 1),
@@ -36,9 +36,16 @@ with DAG(
     }
   )
 
+  insert_updates = SQLExecuteQueryOperator(
+    task_id="insert_updates",
+    conn_id='pg_local',
+    sql='sql/update_exr.sql'
+  )
+
   # DAG definition
   (
     get_date              # Get the date of the 
     >> import_updates     # Import the updates
+    >> insert_updates
   )
   

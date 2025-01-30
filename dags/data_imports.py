@@ -131,7 +131,7 @@ def import_exr_updates(
                               key='last_updated')
 
   update_after = last_updated.date().isoformat()
-  update_after = "2025-01-14"
+  print(update_after)
   params['updatedAfter'] = update_after
 
   df = import_data('exr', ti, source, resource, flow_ref, params, n_dims=0)
