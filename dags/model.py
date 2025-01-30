@@ -7,8 +7,11 @@ import sqlalchemy
 import sqlalchemy.pool
 from xgboost import XGBRegressor
 from sklearn.model_selection import RandomizedSearchCV
+from airflow.providers.postgres.hooks.postgres import PostgresHook # type: ignore
 
 import mlflow
+from functools import reduce
+from datetime import timedelta, date
 
 logging.basicConfig(level=logging.INFO, filename="logs/_model.log")
 
@@ -52,14 +55,36 @@ def prepare_data(
     output['rate'] = df['rate']
    
     # Create lead data
-    for j in range(1, output_lags):
-      output[f'rate+{j}'] = df['rate'].shift(j)
-      output_cols.append(f'rate+{j}')
+    if output_lags > 0:
+        for j in range(1, output_lags):
+          output[f'rate+{j}'] = df['rate'].shift(j)
+          output_cols.append(f'rate+{j}')
 
     output.dropna(inplace=True)
 
     return (output.loc[:, feat_cols].values,
             output.loc[:, output_cols].values)
+
+
+def prepare_input_prediction(
+    data: pd.DataFrame,
+    N: int
+) -> np.ndarray:
+    """
+    Prepares input for prediction by getting the last N values
+    """
+    df = data.set_index('time_period')\
+             .asfreq('d')\
+             .bfill()
+
+    # Get the last 15 values
+    vals = df.reset_index()\
+        .sort_values('time_period')\
+        .head(N)['rate']\
+        .values
+    
+    return np.array([vals])
+
     
 
 def train_model(
@@ -144,8 +169,45 @@ def train_or_get_models(
 
     return models
 
+def produce_forecast(
+    df: pd.api.typing.DataFrameGroupBy,
+    models: dict
+) -> pd.DataFrame:
+    # Produce predictions
+    preds = {}
+    last = df.obj['time_period'].max() - timedelta(days=15)
 
-if __name__ == "__main__":
+    for group, data in df:
+        data_last = data[data['time_period'] > last]
+        if data_last.shape[0] == 0:
+            continue
+
+        X = prepare_input_prediction(data_last, 15)
+        preds[group] = models[group].predict(X)
+
+    # For datetime index creation
+    start = last + timedelta(days=16) # Max date + 1, since last is max date - 1, we need to add 16
+
+    # Format them into a pandas dataframe
+    forecast_tables = []
+    for curr, forecast in preds.items():
+        forecast_table = pd.DataFrame(
+            data = forecast[0],
+            index = pd.date_range(start=start, periods=7, freq='d')
+        )
+        forecast_table['currency'] = curr
+        forecast_tables.append(forecast_table)
+
+    # Merge predictions
+    output_table = pd.concat(forecast_tables)
+
+    # Add a date of forecast
+    output_table['forecast_date'] = date.today()
+    output_table['forecast_error'] = None
+
+    return output_table
+
+def init_system():
     data = get_master()
 
     params = {
@@ -159,3 +221,11 @@ if __name__ == "__main__":
         "models",
         param_dist=params
     )
+
+    forecast_table = produce_forecast(data.groupby('currency'), models)
+
+
+
+
+if __name__ == "__main__":
+    init_system()

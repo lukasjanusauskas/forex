@@ -2,7 +2,7 @@ from collect.collect import SDMXCollector
 from datetime import date
 
 from airflow.models.taskinstance import TaskInstance
-from airflow.providers.postgres.hooks.postgres import PostgresHook
+from airflow.providers.postgres.hooks.postgres import PostgresHook # type: ignore
 from pandas import DataFrame
 
 def get_engine():
