@@ -7,3 +7,5 @@ logs/
 *.Rproj
 *.RData
 *.RHistory
+models/
+mlruns/

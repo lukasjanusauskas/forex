@@ -1,15 +1,20 @@
 import numpy as np
 import pandas as pd
 import os
+import logging
 import sqlalchemy
 
 import sqlalchemy.pool
 from xgboost import XGBRegressor
 from sklearn.model_selection import RandomizedSearchCV
 
+import mlflow
+
+logging.basicConfig(level=logging.INFO, filename="logs/_model.log")
+
 # Import the data
 def get_connection() -> sqlalchemy.pool.base._ConnectionFairy:
-    host = "localost"
+    host = "localhost"
     port = "5454"
     db = "forex"
 
@@ -18,7 +23,7 @@ def get_connection() -> sqlalchemy.pool.base._ConnectionFairy:
 
     return con.connect().connection
 
-def get_master() -> pd.DatatFrame:
+def get_master() -> pd.DataFrame:
     con = get_connection()
     return pd.read_sql_query("SELECT * FROM ex_rates", con=con)
 
@@ -58,7 +63,7 @@ def prepare_data(
     
 
 def train_model(
-    data: pd.DatatFrame,
+    data: pd.DataFrame,
     init_params: dict | None = None,
     param_dist: dict | None = None
 ) -> XGBRegressor:
@@ -73,11 +78,14 @@ def train_model(
            (param_dist is not None),
            "Either init_params or param_dist has to be passed")
 
-    X, y = prepare_data(data)
+    X, y = prepare_data(data, 15, 7)
+    curr = data['currency'].values[0]
 
     if init_params is not None:
         xgb = XGBRegressor(**init_params)
         xgb.fit(X, y)
+
+        logging.info(f'Model for currency {curr} has been trained')
 
         return xgb
 
@@ -86,9 +94,11 @@ def train_model(
 
         rcv = RandomizedSearchCV(
             estimator = xgb,
-            param_distribution = param_dist
+            param_distributions = param_dist
         )
         rcv.fit(X, y)
+
+        logging.info(f'Model for currency {curr} has been trained')
 
         return rcv.best_estimator_
 
@@ -120,16 +130,20 @@ def train_or_get_models(
         # If we haven;t yet trained the model: train and save
         if model_path not in model_files:
             train_ids.append(group) 
-            model = train_model(data, param_dist)
-            model.save_model(f"{model_directory}/{model_path}")
+            model = train_model(data, param_dist=param_dist)
+            mlflow.xgboost.save_model(model, f"{model_directory}/{model_path}")
+
+            logging.info(f'Model for currency {group} has been saved')
+
         # If we haven then we just load
         else:
-            model.load_model(f"{model_directory}/{model_path}")
+            model = mlflow.xgboost.load_model(f"{model_directory}/{model_path}")
+            logging.info(f'Model for currency {group} has been loaded')
 
         models[group] = model
 
     return models
-            
+
 
 if __name__ == "__main__":
     data = get_master()
@@ -142,6 +156,6 @@ if __name__ == "__main__":
 
     models = train_or_get_models(
         data,
-        "../models",
+        "models",
         param_dist=params
     )
