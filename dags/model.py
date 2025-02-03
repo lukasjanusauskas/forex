@@ -9,7 +9,6 @@ from xgboost import XGBRegressor
 from sklearn.model_selection import RandomizedSearchCV
 from airflow.providers.postgres.hooks.postgres import PostgresHook # type: ignore
 
-import mlflow
 from functools import reduce
 from datetime import timedelta, date
 
@@ -156,13 +155,13 @@ def train_or_get_models(
         if model_path not in model_files:
             train_ids.append(group) 
             model = train_model(data, param_dist=param_dist)
-            mlflow.xgboost.save_model(model, f"{model_directory}/{model_path}")
+            model.save_model(f"{model_directory}/{model_path}")
 
             logging.info(f'Model for currency {group} has been saved')
 
         # If we haven then we just load
         else:
-            model = mlflow.xgboost.load_model(f"{model_directory}/{model_path}")
+            model.load_model(f"{model_directory}/{model_path}")
             logging.info(f'Model for currency {group} has been loaded')
 
         models[group] = model
@@ -224,6 +223,8 @@ def init_system():
 
     forecast_table = produce_forecast(data.groupby('currency'), models)
 
+    con = get_connection()
+    forecast_table.to_sql(name='forecast', con=con)
 
 
 
