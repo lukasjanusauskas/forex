@@ -12,21 +12,16 @@ from airflow.providers.postgres.hooks.postgres import PostgresHook # type: ignor
 from functools import reduce
 from datetime import timedelta, date
 
-logging.basicConfig(level=logging.INFO, filename="logs/_model.log")
+logging.basicConfig(level=logging.INFO)
 
 # Import the data
-def get_connection() -> sqlalchemy.pool.base._ConnectionFairy:
-    host = "localhost"
-    port = "5454"
-    db = "forex"
 
-    uri = f"postgresql://airflow:airflow@{host}:{port}/{db}"
-    con = sqlalchemy.create_engine(uri)
-
-    return con.connect().connection
+def get_engine():
+  hook = PostgresHook(postgres_conn_id='pg_local')
+  return hook.get_sqlalchemy_engine()
 
 def get_master() -> pd.DataFrame:
-    con = get_connection()
+    con = get_engine()
     return pd.read_sql_query("SELECT * FROM ex_rates", con=con)
 
 def prepare_data(
@@ -217,15 +212,14 @@ def init_system():
 
     models = train_or_get_models(
         data,
-        "models",
+        "ml_models",
         param_dist=params
     )
 
     forecast_table = produce_forecast(data.groupby('currency'), models)
 
-    con = get_connection()
+    con = get_engine()
     forecast_table.to_sql(name='forecast', con=con)
-
 
 
 if __name__ == "__main__":
