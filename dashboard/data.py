@@ -15,6 +15,8 @@ class DataPlotter:
       # Import data tables
       self.pair_df = pd.read_sql_query('SELECT * FROM ex_pairs', con=connection)\
                        .groupby(['currency_1', 'currency_2'])
+      self.ex_rates = pd.read_sql_query('SELECT * FROM ex_rates', con=connection)\
+                        .groupby('currency')
       self.macro = pd.read_sql('SELECT * FROM macro', con=connection)
 
       # Import the dimension tables
@@ -29,31 +31,62 @@ class DataPlotter:
 
 
   def get_currency_options(self) -> list[str]:
-    pairs = [(int(ent_1), int(ent_2)) 
-             for (ent_1, ent_2), _ in self.pair_df]
-    
-    names = [f"{self.entities.loc[ent_1, 'currency_code']}/{self.entities.loc[ent_2, 'currency_code']}"
-             for ent_1, ent_2 in pairs]
+    # Get the list of all currencies available in pair_df
+    labels = ["EUR"]
+    labels.extend(list(self.currency_names.name))
 
-    return names
+    return labels
   
-  def get_ex_rate_graph(self, pair_str: str):
-    curr_1, curr_2 = tuple(pair_str.split("/"))
+  def get_ex_rate_graph(self, curr_1: str, curr_2: str):
+    # If both currencies are the same: do nothing and return
+    if curr_1 == curr_2:
+      return
+
+    # Euro is a special case: there are no cases of euro in pair dataframe
+    if curr_1 == 'EUR':
+      return self.plot_euro_ex(curr_2, True)
+    if curr_2 == 'EUR':
+      return self.plot_euro_ex(curr_1, False)
     
     mask_1 = self.currency_names['name'] == curr_1
     mask_2 = self.currency_names['name'] == curr_2
 
-    ent_1 = self.currency_names[mask_1].index[0]
-    ent_2 = self.currency_names[mask_2].index[0]
+    try: 
+      ent_1 = self.currency_names[mask_1].index[0]
+      ent_2 = self.currency_names[mask_2].index[0]
+    except KeyError:
+      print("One of the currencies was not found")
+      return
 
     group = (ent_1, ent_2) if ent_1 > ent_2 else (ent_2, ent_1)
-
     data = self.pair_df.get_group(group)
 
     return px.line(
       data,
       x = 'date',
-      y = 'rate'
+      y = 'rate',
+      labels={
+        'date': 'Date',
+        'rate': 'Exchange rate'
+      },
+      title=f'Exchange rate of {curr_2}/{curr_1}'
+    )
+
+  def plot_euro_ex(self, curr: str, first: bool):
+    mask = self.currency_names['name'] == curr
+    ent = self.currency_names[mask].index[0]
+
+    data = self.ex_rates.get_group(ent)
+
+    return px.line(
+      data,
+      x = 'time_period',
+      y = 'rate',
+      labels={
+        'date': 'Date',
+        'rate': 'Exchange rate'
+      },
+      title=f'Exchange rate of {curr}/EUR'
     )
 
 if __name__ == "__main__":

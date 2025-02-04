@@ -14,24 +14,41 @@ app.layout = [
     children= [
      html.H1('FOREX dashboard',
               className='text-3xl font-bold'),
-     dcc.RadioItems(
-       id='radio',
-       className='flex flex-row gap-5 mt-10',
-       options=currency_options,
-       value=currency_options[0],
-       inline=True
+
+      html.Div(className="flex flex-row w-1/3 gap-5",
+      children = [
+       html.P('Pick the currencies',
+              className='text-xl font-bold'),
+
+       dcc.Dropdown(
+         id='dropdown-currency1',
+         className='w-32',
+         options=currency_options,
+         value=currency_options[0],
+       ),
+
+       dcc.Dropdown(
+         id='dropdown-currency2',
+         className='w-32',
+         options=currency_options,
+         value=currency_options[1],
+       )
+      ]
      ),
-     dcc.Graph(id="ex_rate_graph")
+
+     dcc.Graph(id="ex_rate_graph",
+               className="w-1/2")
     ])
 ]
 
 # Callbacks for interactivity
 @callback(
   Output('ex_rate_graph', 'figure'),
-  Input('radio', 'value')
+  Input('dropdown-currency1', 'value'),
+  Input('dropdown-currency2', 'value')
 )
-def update_ex_rate(pair_str: str):
-  return plotter.get_ex_rate_graph(pair_str)
+def update_ex_rate(curr_1: str, curr_2: str):
+  return plotter.get_ex_rate_graph(curr_2, curr_1)
 
 if __name__ == '__main__':
   app.run(debug=True)
