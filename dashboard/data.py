@@ -1,3 +1,4 @@
+import plotly.graph_objects as go
 import pandas as pd
 import plotly.express as px
 
@@ -18,6 +19,8 @@ class DataPlotter:
       self.ex_rates = pd.read_sql_query('SELECT * FROM ex_rates', con=connection)\
                         .groupby('currency')
       self.macro = pd.read_sql('SELECT * FROM macro', con=connection)
+      self.forecast = pd.read_sql('SELECT * FROM forecast', con=connection)\
+                        .groupby('currency')
 
       # Import the dimension tables
       self.bop_measure = pd.read_sql_query('SELECT * FROM bop_measure_final', con=connection)\
@@ -36,6 +39,20 @@ class DataPlotter:
     labels.extend(list(self.currency_names.name))
 
     return labels
+
+  def get_currency_index(self, curr: str) -> int | None:
+    """
+    Gets the currency index, needed to access the data. If it doesn't exist - returns None.
+    """
+
+    try:
+      mask = self.currency_names['name'] == curr
+      ent = self.currency_names[mask].index[0]
+
+      return ent
+
+    except KeyError:
+      return
   
   def get_ex_rate_graph(self, curr_1: str, curr_2: str):
     # If both currencies are the same: do nothing and return
@@ -48,14 +65,11 @@ class DataPlotter:
     if curr_2 == 'EUR':
       return self.plot_euro_ex(curr_1, False)
     
-    mask_1 = self.currency_names['name'] == curr_1
-    mask_2 = self.currency_names['name'] == curr_2
+    ent_1 = self.get_currency_index(curr_1)
+    ent_2 = self.get_currency_index(curr_2)
 
-    try: 
-      ent_1 = self.currency_names[mask_1].index[0]
-      ent_2 = self.currency_names[mask_2].index[0]
-    except KeyError:
-      print("One of the currencies was not found")
+    # Handle the case, when one of the currencies is not available in the dataset
+    if ent_1 is None or ent_2 is None:
       return
 
     group = (ent_1, ent_2) if ent_1 > ent_2 else (ent_2, ent_1)
@@ -66,15 +80,23 @@ class DataPlotter:
       x = 'date',
       y = 'rate',
       labels={
-        'date': 'Date',
+        'time_period': 'Date',
         'rate': 'Exchange rate'
       },
-      title=f'Exchange rate of {curr_2}/{curr_1}'
+      title=f'Exchange rate of {group[0]}/{group[1]}'
     )
 
   def plot_euro_ex(self, curr: str, first: bool):
-    mask = self.currency_names['name'] == curr
-    ent = self.currency_names[mask].index[0]
+    ent = self.get_currency_index(curr)
+    if not ent:
+      return go.Figure()\
+        .update_layout(showlegend=False,
+                       plot_bgcolor='rgba(0, 0, 0, 0)')\
+        .add_annotation(x=2, y=2, text='No data available',
+                        font={"size": 50, "color": "red"},
+                        showarrow=False)\
+        .update_xaxes(visible=False)\
+        .update_yaxes(visible=False)
 
     data = self.ex_rates.get_group(ent)
 
@@ -83,13 +105,83 @@ class DataPlotter:
       x = 'time_period',
       y = 'rate',
       labels={
-        'date': 'Date',
+        'time_period': 'Date',
         'rate': 'Exchange rate'
       },
       title=f'Exchange rate of {curr}/EUR'
     )
 
+  def plot_forecast(self, curr_1, curr_2):
+    if curr_1 == "EUR":
+      return self.plot_forecast_euro(curr_2)
+    if curr_2 == "EUR":
+      return self.plot_forecast_euro(curr_1)
+
+    if curr_1 == curr_2:
+      return
+    
+    forecast_1 = self.get_forecast(curr_1)\
+                     .set_index(['index'])
+    forecast_2 = self.get_forecast(curr_2)\
+                     .set_index(['index'])
+
+    print(forecast_1.head())
+    print(forecast_2.head())
+
+    if forecast_1 is None or forecast_2 is None:
+      return 
+
+    forecast_1['fore1'] = forecast_1.loc[:, '0']
+    forecast_1['fore2'] = forecast_2.loc[:, '0']
+    forecast_1['fore'] = forecast_1['fore1'] / forecast_1['fore2']
+
+    return px.line(
+      forecast_1.reset_index(),
+      x='index',
+      y='fore',
+      labels={
+        'index': 'Date',
+        'fore': 'Forecast'
+      },
+      title='Forecast'
+    )
+  
+  def plot_forecast_euro(self, curr: str):
+    forecast = self.get_forecast(curr)
+
+    if forecast is None:
+      return go.Figure()\
+        .update_layout(showlegend=False,
+                       plot_bgcolor='rgba(0, 0, 0, 0)')\
+        .add_annotation(x=2, y=2, text='No forecast available',
+                        font={"size": 50, "color": "red"},
+                        showarrow=False)\
+        .update_xaxes(visible=False)\
+        .update_yaxes(visible=False)
+
+    return px.line(
+      forecast,
+      x='index',
+      y='0',
+      labels={
+        'index': 'Date',
+        '0': 'Forecast'
+      },
+      title='Forecast'
+    )
+
+  def get_forecast(self, curr) -> pd.DataFrame | None:
+    try:
+      ent = self.get_currency_index(curr)
+      data = self.forecast.get_group(ent)
+
+      mask = data['forecast_error'].isna()
+      return data[mask]
+
+    except KeyError:
+      return
+
 if __name__ == "__main__":
   plotter = DataPlotter("postgresql://airflow:airflow@localhost:5454/forex")
-  fig = (plotter.get_ex_rate_graph('JPY/USD'))
+  fig = plotter.plot_forecast('BRL', 'EUR')
   fig.show()

@@ -15,7 +15,7 @@ app.layout = [
      html.H1('FOREX dashboard',
               className='text-3xl font-bold'),
 
-      html.Div(className="flex flex-row w-1/3 gap-5",
+      html.Div(className="flex flex-row w-1/3 gap-5 my-2",
       children = [
        html.P('Pick the currencies',
               className='text-xl font-bold'),
@@ -36,8 +36,10 @@ app.layout = [
       ]
      ),
 
-     dcc.Graph(id="ex_rate_graph",
-               className="w-1/2")
+     html.Div(className="flex flex-row gap-20",
+        children= [dcc.Graph(id="ex_rate_graph", className="w-2/5"),
+                   dcc.Graph(id="forecast_graph", className="w-2/5")]
+     )
     ])
 ]
 
@@ -49,6 +51,14 @@ app.layout = [
 )
 def update_ex_rate(curr_1: str, curr_2: str):
   return plotter.get_ex_rate_graph(curr_2, curr_1)
+
+@callback(
+  Output('forecast_graph', 'figure'),
+  Input('dropdown-currency1', 'value'),
+  Input('dropdown-currency2', 'value')
+)
+def update_forecast(curr_1: str, curr_2: str):
+  return plotter.plot_forecast(curr_2, curr_1)
 
 if __name__ == '__main__':
   app.run(debug=True)
