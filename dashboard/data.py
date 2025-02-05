@@ -1,5 +1,7 @@
 import plotly.graph_objects as go
 import pandas as pd
+from numpy import ones_like
+from datetime import datetime, timedelta
 import plotly.express as px
 
 from sqlalchemy import create_engine
@@ -54,16 +56,23 @@ class DataPlotter:
     except KeyError:
       return
   
-  def get_ex_rate_graph(self, curr_1: str, curr_2: str):
-    # If both currencies are the same: do nothing and return
+  def get_ex_rate_graph(self, curr_1: str, curr_2: str, timeframe: int):
+    """
+    Creates a graph of the exchange rates, given two currencies and a time frame(integer in days).
+
+    :param curr_1: First currency
+    :param curr_2: Second currency
+    :param timeframe: Time frame in days
+    """
+
     if curr_1 == curr_2:
       return
 
     # Euro is a special case: there are no cases of euro in pair dataframe
     if curr_1 == 'EUR':
-      return self.plot_euro_ex(curr_2, True)
+      return self.plot_euro_ex(curr_2, timeframe)
     if curr_2 == 'EUR':
-      return self.plot_euro_ex(curr_1, False)
+      return self.plot_euro_ex(curr_1, timeframe)
     
     ent_1 = self.get_currency_index(curr_1)
     ent_2 = self.get_currency_index(curr_2)
@@ -73,21 +82,28 @@ class DataPlotter:
       return
 
     group = (ent_1, ent_2) if ent_1 > ent_2 else (ent_2, ent_1)
+    name_1, name_2 = (curr_1, curr_2) if ent_1 > ent_2 else (curr_2, curr_1)
     data = self.pair_df.get_group(group)
 
+    # Update dag is not yet finished, so I had to artificially add 7 days
+    earliest = datetime.today() - timedelta(days=timeframe+7) 
+    mask = (data['date'] >= earliest if timeframe != -1 else
+            ones_like(data['date'].values, dtype=bool))
+
     return px.line(
-      data,
+      data[mask].sort_values('date'),
       x = 'date',
       y = 'rate',
       labels={
-        'time_period': 'Date',
+        'date': 'Date',
         'rate': 'Exchange rate'
       },
-      title=f'Exchange rate of {group[0]}/{group[1]}'
+      title=f'Exchange rate of {name_1}/{name_2}'
     )
 
-  def plot_euro_ex(self, curr: str, first: bool):
+  def plot_euro_ex(self, curr: str, timeframe: int):
     ent = self.get_currency_index(curr)
+
     if not ent:
       return go.Figure()\
         .update_layout(showlegend=False,
@@ -99,9 +115,14 @@ class DataPlotter:
         .update_yaxes(visible=False)
 
     data = self.ex_rates.get_group(ent)
+    earliest = datetime.today() - timedelta(days=timeframe+7)
+
+    # -1 in this context is a special value meaning: maximum days
+    mask = (data['time_period'] >= earliest if timeframe != -1 else
+            ones_like(data['time_period'].values, dtype=bool))
 
     return px.line(
-      data,
+      data[mask].sort_values('time_period'),
       x = 'time_period',
       y = 'rate',
       labels={
@@ -120,16 +141,13 @@ class DataPlotter:
     if curr_1 == curr_2:
       return
     
-    forecast_1 = self.get_forecast(curr_1)\
-                     .set_index(['index'])
-    forecast_2 = self.get_forecast(curr_2)\
-                     .set_index(['index'])
-
-    print(forecast_1.head())
-    print(forecast_2.head())
+    forecast_1 = self.get_forecast(curr_1)
+    forecast_2 = self.get_forecast(curr_2)
 
     if forecast_1 is None or forecast_2 is None:
       return 
+
+    forecast_1, forecast_2 = forecast_1.set_index(['index']), forecast_2.set_index(['index'])
 
     forecast_1['fore1'] = forecast_1.loc[:, '0']
     forecast_1['fore2'] = forecast_2.loc[:, '0']
