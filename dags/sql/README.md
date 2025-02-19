@@ -3,6 +3,15 @@
 ## Main schema(final product):
 
 ### `master`
+| column_name | data_type | meaning |
+| --- | --- | --- |
+| currency | int8 | The currency index from `ex_rates` table |
+| bop_measure | int8 | Balance of payment measure |
+| inr_measure | int8 | interest rate measure |
+| date | timestamp | |
+| bop_value | float8 | |
+| inr_value | falot8 | |
+| rate | float8 | Exchange rate (currency/EUR) |
 
 ### `inr_measure_final`
 
